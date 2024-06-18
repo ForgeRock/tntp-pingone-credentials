@@ -11,14 +11,17 @@ management, and Credential Verification:
 
 * [Introduction to PingOne Credentials](https://docs.pingidentity.com/r/en-us/pingone/pingone_credentials_introduction_to_pingonecredentials)
 
-> At this time, no other PingOne Verification is supported by these nodes.
 
 Identity Cloud provides the following artifacts to enable the PingOne Verify Nodes:
 
 * [PingOne service](https://github.com/ForgeRock/tntp-ping-service/tree/cloudprep?tab=readme-ov-file#ping-one-service)
 * [PingOne Credentials Pair Wallet node](https://github.com/ForgeRock/tntp-pingone-credentials/blob/main/docs/PairWallet/Readme.md)
-* [PingOne Verify Remove Wallet node](https://github.com/ForgeRock/tntp-pingone-credentials/blob/main/docs/RemoveWallet/Readme.md)
-* [PingOne Verify Remove Wallet node](https://github.com/ForgeRock/tntp-pingone-credentials/blob/main/docs/FindWallets/Readme.md)
+* [PingOne Credentials Remove Wallet node](https://github.com/ForgeRock/tntp-pingone-credentials/blob/main/docs/RemoveWallet/Readme.md)
+* [PingOne Credentials Find Wallets node](https://github.com/ForgeRock/tntp-pingone-credentials/blob/main/docs/FindWallets/Readme.md)
+* [PingOne Credentials Issue node](https://github.com/ForgeRock/tntp-pingone-credentials/blob/main/docs/Issue/Readme.md)
+* [PingOne Credentials Update node](https://github.com/ForgeRock/tntp-pingone-credentials/blob/main/docs/Update/Readme.md)
+* [PingOne Credentials Revoke node](https://github.com/ForgeRock/tntp-pingone-credentials/blob/main/docs/Revoke/Readme.md)
+* [PingOne Credentials Verification node](https://github.com/ForgeRock/tntp-pingone-credentials/blob/main/docs/Verification/Readme.md)
 
 You must set up the following before using the PingOne Verify nodes:
 
