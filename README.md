@@ -23,7 +23,7 @@ Identity Cloud provides the following artifacts to enable the PingOne Verify Nod
 * [PingOne Credentials Revoke node](https://github.com/ForgeRock/tntp-pingone-credentials/blob/main/docs/Revoke/Readme.md)
 * [PingOne Credentials Verification node](https://github.com/ForgeRock/tntp-pingone-credentials/blob/main/docs/Verification/Readme.md)
 
-You must set up the following before using the PingOne Verify nodes:
+You must set up the following before using the PingOne Credentials nodes:
 
 * [Create a credential](https://docs.pingidentity.com/r/en-us/pingone/pingone_creating_and_managing_credentials)
 * [Create a worker application](https://docs.pingidentity.com/r/en-us/pingone/p1_add_app_worker)
