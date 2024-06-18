@@ -1,6 +1,6 @@
 # PingOne Credentials Find Wallets
 
-The PingOne Credentials Remove Wallet node lets administrators create a Journey which returns all the paired digital wallet from the PingOne user.
+The PingOne Credentials Find Wallet node lets administrators create a Journey which returns all the paired digital wallet from the PingOne user.
 
 ## Compatibility
 
