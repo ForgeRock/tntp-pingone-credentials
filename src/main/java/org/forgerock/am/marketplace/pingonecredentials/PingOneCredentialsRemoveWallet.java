@@ -162,7 +162,7 @@ public class PingOneCredentialsRemoveWallet implements Node {
             List<Outcome> results = new ArrayList<>();
             results.add(new Outcome(SUCCESS_OUTCOME_ID, bundle.getString("successOutcome")));
             results.add(new Outcome(NOT_FOUND_OUTCOME_ID, bundle.getString("notFoundOutcome")));
-            results.add(new Outcome(FAILURE_OUTCOME_ID, bundle.getString("errorOutcome")));
+            results.add(new Outcome(FAILURE_OUTCOME_ID, bundle.getString("failureOutcome")));
             return Collections.unmodifiableList(results);
         }
     }

@@ -1,6 +1,6 @@
-# PingOne Credentials Pair Wallet
+# PingOne Credentials Verification
 
-The PingOne Credentials Pair Wallet node lets administrators integrate PingOne Credentials digital wallet pairing functionality in a Journey.
+The PingOne Credentials Verification node lets administrators configure a journey to verify a PingOne Credential
 
 ## Compatibility
 
@@ -33,8 +33,7 @@ The PingOne Credentials Pair Wallet node lets administrators integrate PingOne C
 
 ## Inputs
 
-This node retrieves from the journey state:
-* **The PingOne User ID**
+None
 
 ## Configuration
 
@@ -50,21 +49,33 @@ This node retrieves from the journey state:
       </td>
     </tr>
   <tr>
-    <td>PingOne Wallet Application ID</td>
-    <td>Digital Wallet Application Id from PingOne Credentials</td>
+    <td>Credential Type</td>
+    <td>Type of credential to verify. Must be the name of a PingOne credential type issued by the credential issuer.
+</td>
   </tr>
      <tr>
-      <td>PingOne User ID Attribute</td>
-      <td>Local attribute name to retrieve the PingOne userID from.  Will look in journey state first, then the local datastore
+      <td>Disclosure Attribute Keys</td>
+      <td>Attribute key names for selective disclosure to return from the credential.
 </td>
     </tr>
      <tr>
-      <td>Digital Wallet Pairing URL delivery method</td>
-      <td>If checked user will be prompted for delivery method above<br>
+      <td>Application Instance ID</td>
+      <td>Identifier of the application running the Wallet SDK on the user's device and registered \
+  with the service. When set and protocol is NATIVE, the service sends a push notification to the application instance using \
+  the settings of the digital wallet application.
+</td>
+    </tr>
+     <tr>
+      <td>Digital Wallet Application ID</td>
+      <td>Digital Wallet Application ID from PingOne Credentials required for Push delivery method.
+</td>
+    </tr>
+     <tr>
+      <td>Verification URL Delivery Method</td>
+      <td>The delivery method for the Verification URL. Choose from: <br>
 
 - QR Code
-- Email
-- SMS
+- Push
 
 </td>
     </tr>
@@ -85,16 +96,21 @@ This node retrieves from the journey state:
       <td>Waiting Message</td>
       <td>Localization overrides for the waiting message. This is a map of locale to message.</td>
     </tr>
+    <tr>
+      <td>Push Message</td>
+      <td>A custom message that the end-user will see when requesting the credential.</td>
+    </tr>
      <tr>
-      <td>Store Wallet Response</td>
+      <td>Store Credential Verification Response</td>
       <td>Store the list of verified data submitted by the user in the shared state under a key\
-  named <code>pingOneWallet</code>.<br><br>\
+  named <code>pingOneCredentialVerification</code>.<br><br>\
   <em>Note</em>: The key is empty if the node is unable to retrieve the wallet pairing data from PingOne.
 </td>
     </tr>
     <tr>
-      <td>Submission timeout</td>
-      <td>Digital wallet pairing timeout in seconds. 
+      <td>Verification Timeout</td>
+      <td>The period of time (in seconds) to wait for a response to the Verification request. If no \
+  response is received during this time the node times out and the verification process fails.
       </td>
     </tr>
     <tr>
@@ -104,7 +120,7 @@ This node retrieves from the journey state:
 ## Outputs
 
 <ul>
-<li>pingOneWallet - The new PingOne User's digital wallet</li>
+<li>pingOneCredentialVerification - The new PingOne Credential Verification request status and full response.</li>
 </ul>
 
 ## Outcomes

@@ -86,6 +86,7 @@ public class PingOneCredentialsVerification implements Node {
 
 	static final String DEFAULT_DELIVERY_METHOD_MESSAGE_KEY = "default.deliveryMethodMessage";
 	static final String DEFAULT_WAITING_MESSAGE_KEY = "default.waitingMessage";
+	static final String DEFAULT_PUSH_MESSAGE_KEY = "default.pushMessage";
 	static final String SCAN_QR_CODE_MSG_KEY = "default.scanQRCodeMessage";
 
 	static final String QR_CALLBACK_STRING = "callback_0";
@@ -188,6 +189,15 @@ public class PingOneCredentialsVerification implements Node {
 		}
 
 		/**
+		 * The message to display to the user during a push verification request, keyed on the locale. Falls back to default.waitingMessage.
+		 * @return The message to display on the waiting indicator.
+		 */
+		@Attribute(order = 1100)
+		default Map<Locale, String> pushMessage() {
+			return Collections.emptyMap();
+		}
+
+		/**
 		 * Store the create verification response in the shared state.
 		 * @return true if the create verification response should be stored, false otherwise.
 		 */
@@ -230,7 +240,7 @@ public class PingOneCredentialsVerification implements Node {
 				int choice = confirmationCallback.get().getSelectedIndex();
 				nodeState.putShared(PINGONE_VERIFICATION_DELIVERY_METHOD_KEY, choice);
 				return startVerificationTransaction(context, accessToken, Constants.VerificationDeliveryMethod.fromIndex(choice),
-				                                    config.credentialType(), "Message for Pairing...",
+				                                    config.credentialType(), getWaitingMessage(context),
 				                                    config.attributeKeys());
 			}
 
@@ -411,9 +421,16 @@ public class PingOneCredentialsVerification implements Node {
 
 	private String getWaitingMessage(TreeContext context) {
 		return localizationHelper.getLocalizedMessage(context,
-		                                              PingOneCredentialsPairWallet.class,
+		                                              PingOneCredentialsVerification.class,
 		                                              config.waitingMessage(),
 		                                              DEFAULT_WAITING_MESSAGE_KEY);
+	}
+
+	private String getPushMessage(TreeContext context) {
+		return localizationHelper.getLocalizedMessage(context,
+		                                              PingOneCredentialsVerification.class,
+		                                              config.pushMessage(),
+		                                              DEFAULT_PUSH_MESSAGE_KEY);
 	}
 
 	private Action.ActionBuilder waitTransactionCompletion(NodeState nodeState, List<Callback> callbacks, int timeout) {

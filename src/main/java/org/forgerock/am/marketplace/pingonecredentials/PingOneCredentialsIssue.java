@@ -9,16 +9,11 @@
 package org.forgerock.am.marketplace.pingonecredentials;
 
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.FAILURE_OUTCOME_ID;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_USER_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_STATUS;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.SUCCESS_OUTCOME_ID;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.VALUE;
-import static org.forgerock.json.JsonValue.field;
-import static org.forgerock.json.JsonValue.object;
 
 import com.google.inject.assistedinject.Assisted;
-import com.sun.identity.idm.AMIdentity;
 
 import org.apache.commons.lang.StringUtils;
 import org.forgerock.json.JsonValue;
@@ -32,9 +27,7 @@ import org.forgerock.openam.auth.node.api.TreeContext;
 import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfig;
 import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfigChoiceValues;
 import org.forgerock.openam.auth.service.marketplace.TNTPPingOneUtility;
-import org.forgerock.openam.core.CoreWrapper;
 import org.forgerock.openam.core.realms.Realm;
-import org.forgerock.openam.integration.idm.IdmIntegrationService;
 import org.forgerock.util.i18n.PreferredLocales;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,16 +49,13 @@ public class PingOneCredentialsIssue implements Node {
 
     private final Config config;
     private final Realm realm;
-    private TNTPPingOneConfig tntpPingOneConfig;
-    private final CoreWrapper coreWrapper;
+    private final TNTPPingOneConfig tntpPingOneConfig;
 
     private final Logger logger = LoggerFactory.getLogger(PingOneCredentialsIssue.class);
     private final String loggerPrefix = "[PingOne Credentials Issue Node]" + PingOneCredentialsPlugin.logAppender;
 
     public static final String BUNDLE = PingOneCredentialsIssue.class.getName();
     private final Helper client;
-    private AMIdentity identity = null;
-    private final IdmIntegrationService idmIntegrationService;
 
 
     /**
@@ -106,13 +96,11 @@ public class PingOneCredentialsIssue implements Node {
      * @param realm  The realm the node is in.
      */
     @Inject
-    public PingOneCredentialsIssue(@Assisted Config config, @Assisted Realm realm, CoreWrapper coreWrapper, Helper client, IdmIntegrationService idmIntegrationService) {
-        this.coreWrapper = coreWrapper;
+    public PingOneCredentialsIssue(@Assisted Config config, @Assisted Realm realm, Helper client) {
         this.config = config;
         this.realm = realm;
         this.tntpPingOneConfig = TNTPPingOneConfigChoiceValues.getTNTPPingOneConfig(config.tntpPingOneConfigName());
         this.client = client;
-        this.idmIntegrationService = idmIntegrationService;
     }
 
     @Override
