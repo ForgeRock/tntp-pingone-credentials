@@ -12,7 +12,7 @@ management, and Credential Verification:
 * [Introduction to PingOne Credentials](https://docs.pingidentity.com/r/en-us/pingone/pingone_credentials_introduction_to_pingonecredentials)
 
 
-Identity Cloud provides the following artifacts to enable the PingOne Verify Nodes:
+Identity Cloud provides the following artifacts to enable the PingOne Credentials Nodes:
 
 * [PingOne service](https://github.com/ForgeRock/tntp-ping-service/tree/cloudprep?tab=readme-ov-file#ping-one-service)
 * [PingOne Credentials Pair Wallet node](https://github.com/ForgeRock/tntp-pingone-credentials/blob/main/docs/PairWallet/Readme.md)
