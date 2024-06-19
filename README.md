@@ -14,7 +14,7 @@ management, and Credential Verification:
 
 Identity Cloud provides the following artifacts to enable the PingOne Credentials Nodes:
 
-* [PingOne service](https://github.com/ForgeRock/tntp-ping-service/tree/cloudprep?tab=readme-ov-file#ping-one-service)
+* [PingOne service](https://github.com/ForgeRock/tntp-ping-service/blob/main/README.md)
 * [PingOne Credentials Pair Wallet node](https://github.com/ForgeRock/tntp-pingone-credentials/blob/main/docs/PairWallet/Readme.md)
 * [PingOne Credentials Remove Wallet node](https://github.com/ForgeRock/tntp-pingone-credentials/blob/main/docs/RemoveWallet/Readme.md)
 * [PingOne Credentials Find Wallets node](https://github.com/ForgeRock/tntp-pingone-credentials/blob/main/docs/FindWallets/Readme.md)
