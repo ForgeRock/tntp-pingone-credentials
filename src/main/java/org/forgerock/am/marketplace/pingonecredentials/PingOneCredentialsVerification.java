@@ -122,23 +122,23 @@ public class PingOneCredentialsVerification implements Node {
 			return Collections.emptyList();
 		}
 
-		@Attribute(order = 400)
-		default String applicationInstanceId() {
-			return "";
-		}
-
-		@Attribute(order = 500)
-		default String digitalWalletApplicationId() {return ""; }
-
 		/**
 		 * The Pairing URL delivery method.
 		 *
 		 * @return The type of delivery method.
 		 */
-		@Attribute(order = 600)
+		@Attribute(order = 400)
 		default VerificationDeliveryMethod deliveryMethod() {
 			return VerificationDeliveryMethod.QRCODE;
 		}
+
+		@Attribute(order = 500)
+		default String applicationInstanceId() {
+			return "";
+		}
+
+		@Attribute(order = 600)
+		default String digitalWalletApplicationId() {return ""; }
 
 		/**
 		 * Allow user to choose the URL delivery method.
@@ -192,7 +192,7 @@ public class PingOneCredentialsVerification implements Node {
 		 * The message to display to the user during a push verification request, keyed on the locale. Falls back to default.waitingMessage.
 		 * @return The message to display on the waiting indicator.
 		 */
-		@Attribute(order = 1100)
+		@Attribute(order = 1200)
 		default Map<Locale, String> pushMessage() {
 			return Collections.emptyMap();
 		}
@@ -201,7 +201,7 @@ public class PingOneCredentialsVerification implements Node {
 		 * Store the create verification response in the shared state.
 		 * @return true if the create verification response should be stored, false otherwise.
 		 */
-		@Attribute(order = 1200)
+		@Attribute(order = 1300)
 		default boolean storeVerificationResponse() {
 			return false;
 		}
@@ -240,7 +240,7 @@ public class PingOneCredentialsVerification implements Node {
 				int choice = confirmationCallback.get().getSelectedIndex();
 				nodeState.putShared(PINGONE_VERIFICATION_DELIVERY_METHOD_KEY, choice);
 				return startVerificationTransaction(context, accessToken, Constants.VerificationDeliveryMethod.fromIndex(choice),
-				                                    config.credentialType(), getWaitingMessage(context),
+				                                    config.credentialType(), getPushMessage(context),
 				                                    config.attributeKeys());
 			}
 
@@ -255,14 +255,6 @@ public class PingOneCredentialsVerification implements Node {
 				}
 				return getActionFromVerificationStatus(context, accessToken);
 			} else {
-				// Check if it should resume a previous transaction set by the Completion Decision node
-                /*if (nodeState.isDefined(PINGONE_WALLET_ID_KEY)) {
-                    logger.debug("Resuming an Identity Verification process previously started.");
-                    nodeState.putShared(PINGONE_VERIFY_DELIVERY_METHOD_KEY, 0);
-                    nodeState.putShared(PINGONE_VERIFY_TIMEOUT_KEY, 0);
-                    return getActionFromPairingTransactionStatus(context, accessToken, pingOneUserId);
-                }*/
-
 				// Start new pairing transaction
 				if (config.allowDeliveryMethodSelection()) {
 					logger.error("Present options to select the delivery method.");
@@ -271,7 +263,7 @@ public class PingOneCredentialsVerification implements Node {
 				} else {
 					logger.error("Start new Identity Verification process.");
 					return startVerificationTransaction(context, accessToken, config.deliveryMethod(),
-					                                    config.credentialType(), "Message for Pairing...",
+					                                    config.credentialType(), getPushMessage(context),
 					                                    config.attributeKeys());
 				}
 			}
@@ -310,7 +302,6 @@ public class PingOneCredentialsVerification implements Node {
 		// Retrieve response values
 		String status = response.get(RESPONSE_STATUS).asString();
 		String qrUrl = response.get(RESPONSE_LINKS).get(RESPONSE_QR).get(RESPONSE_HREF).asString();
-
 
 		switch (status) {
 			case INITIAL:
@@ -438,10 +429,7 @@ public class PingOneCredentialsVerification implements Node {
 		int timeOutInMs = timeout * 1000;
 		int timeElapsed = nodeState.get(PINGONE_VERIFICATION_TIMEOUT_KEY).asInteger();
 
-		logger.error("timeElapsed: " + timeElapsed);
-		logger.error("timeOutInMs: " + timeOutInMs);
 		if (timeElapsed >= timeOutInMs) {
-			logger.error("Returning timeout.");
 			return Action.goTo(TIMEOUT_OUTCOME_ID);
 		} else {
 			nodeState.putShared(PINGONE_VERIFICATION_TIMEOUT_KEY, timeElapsed + TRANSACTION_POLL_INTERVAL);

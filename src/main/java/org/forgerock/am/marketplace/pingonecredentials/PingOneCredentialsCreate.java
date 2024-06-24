@@ -9,7 +9,9 @@
 package org.forgerock.am.marketplace.pingonecredentials;
 
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.FAILURE_OUTCOME_ID;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_USER_ID_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_STATUS;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.SUCCESS_OUTCOME_ID;
 
@@ -42,19 +44,19 @@ import java.util.ResourceBundle;
 
 
 @Node.Metadata(
-    outcomeProvider = PingOneCredentialsIssue.IssueOutcomeProvider.class,
-    configClass = PingOneCredentialsIssue.Config.class,
+    outcomeProvider = PingOneCredentialsCreate.IssueOutcomeProvider.class,
+    configClass = PingOneCredentialsCreate.Config.class,
     tags = {"marketplace", "trustnetwork"})
-public class PingOneCredentialsIssue implements Node {
+public class PingOneCredentialsCreate implements Node {
 
     private final Config config;
     private final Realm realm;
     private final TNTPPingOneConfig tntpPingOneConfig;
 
-    private final Logger logger = LoggerFactory.getLogger(PingOneCredentialsIssue.class);
-    private final String loggerPrefix = "[PingOne Credentials Issue Node]" + PingOneCredentialsPlugin.logAppender;
+    private final Logger logger = LoggerFactory.getLogger(PingOneCredentialsCreate.class);
+    private final String loggerPrefix = "[PingOne Credentials Create Node]" + PingOneCredentialsPlugin.logAppender;
 
-    public static final String BUNDLE = PingOneCredentialsIssue.class.getName();
+    public static final String BUNDLE = PingOneCredentialsCreate.class.getName();
     private final Helper client;
 
 
@@ -76,16 +78,10 @@ public class PingOneCredentialsIssue implements Node {
             return "";
         }
 
-        @Attribute(order = 300)
-        default String userIdAttribute() {
-            return "";
-        }
-
         @Attribute(order = 400)
         default Map<String, String> attributes() {
             return Collections.emptyMap();
         }
-
     }
 
     /**
@@ -96,7 +92,7 @@ public class PingOneCredentialsIssue implements Node {
      * @param realm  The realm the node is in.
      */
     @Inject
-    public PingOneCredentialsIssue(@Assisted Config config, @Assisted Realm realm, Helper client) {
+    public PingOneCredentialsCreate(@Assisted Config config, @Assisted Realm realm, Helper client) {
         this.config = config;
         this.realm = realm;
         this.tntpPingOneConfig = TNTPPingOneConfigChoiceValues.getTNTPPingOneConfig(config.tntpPingOneConfigName());
@@ -123,14 +119,17 @@ public class PingOneCredentialsIssue implements Node {
             TNTPPingOneUtility pingOneUtility = TNTPPingOneUtility.getInstance();
             AccessToken accessToken = pingOneUtility.getAccessToken(realm, tntpPingOneConfig);
 
-            JsonValue response = client.credentialIssueRequest(accessToken,
-                                                               tntpPingOneConfig.environmentRegion().getDomainSuffix(),
-                                                               tntpPingOneConfig.environmentId(),
-                                                               pingOneUserId,
-                                                               config.credentialTypeId(),
-                                                               getAttributesArray(nodeState));
+            JsonValue response = client.credentialCreateRequest(accessToken,
+                                                                tntpPingOneConfig.environmentRegion().getDomainSuffix(),
+                                                                tntpPingOneConfig.environmentId(),
+                                                                pingOneUserId,
+                                                                config.credentialTypeId(),
+                                                                getAttributesArray(nodeState));
 
             String result = response.get(RESPONSE_STATUS).asString();
+
+            nodeState.putShared(PINGONE_CREDENTIAL_ID_KEY, response.get(RESPONSE_ID).asString());
+
             logger.error(loggerPrefix + "Result: " + result);
 
             return Action.goTo(SUCCESS_OUTCOME_ID).build();
@@ -149,14 +148,8 @@ public class PingOneCredentialsIssue implements Node {
 
         config.attributes().forEach(
             (k, v) -> {
-                if (v.startsWith("{") && v.endsWith("}")) {
-                    String ssKey = v.substring(1, v.length() - 1);
-                    if (sharedState.isDefined(ssKey)) {
-                        attributes.put(k, sharedState.get(ssKey));
-                    }
-                }
-                else {
-                    attributes.put(k, v);
+                if (sharedState.isDefined(k)) {
+                    attributes.put(k, sharedState.get(k));
                 }
             });
 
@@ -166,7 +159,7 @@ public class PingOneCredentialsIssue implements Node {
     public static class IssueOutcomeProvider implements OutcomeProvider {
         @Override
         public List<Outcome> getOutcomes(PreferredLocales locales, JsonValue nodeAttributes) {
-            ResourceBundle bundle = locales.getBundleInPreferredLocale(PingOneCredentialsIssue.BUNDLE,
+            ResourceBundle bundle = locales.getBundleInPreferredLocale(PingOneCredentialsCreate.BUNDLE,
                                                                        OutcomeProvider.class.getClassLoader());
             List<Outcome> results = new ArrayList<>();
             results.add(new Outcome(SUCCESS_OUTCOME_ID, bundle.getString("successOutcome")));

@@ -6,7 +6,8 @@ public class Constants {
 	public static final String PINGONE_PAIRING_DELIVERY_METHOD_KEY = "pingOneWalletPairingDeliveryMethod";
 	public static final String PINGONE_PAIRING_TIMEOUT_KEY = "pingOnePairingTimeout";
 	public static final String PINGONE_WALLET_ID_KEY = "pingOneWalletId";
-	public static final String PINGONE_WALLET_KEY = "pingOneWallet";
+	public static final String PINGONE_WALLET_DATA_KEY = "pingOneWallet";
+	public static final String PINGONE_ACTIVE_WALLETS_DATA_KEY = "pingOneActiveWallets";
 
 	public static final String PINGONE_VERIFICATION_DELIVERY_METHOD_KEY = "pingOneVerificationDeliveryMethod";
 	public static final String PINGONE_VERIFICATION_SESSION_KEY = "pingOneVerificationSessionId";
@@ -32,6 +33,9 @@ public class Constants {
 	public static final String REVOKED = "REVOKED";
 
 	public final static String INITIAL = "INITIAL";
+
+	public final static String OBJECT_ATTRIBUTES = "objectAttributes";
+
 
 	protected final static String KEY = "key";
 	protected final static String VALUE = "value";

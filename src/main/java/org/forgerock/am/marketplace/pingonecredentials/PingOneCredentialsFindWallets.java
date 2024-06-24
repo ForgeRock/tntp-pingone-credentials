@@ -11,7 +11,10 @@ package org.forgerock.am.marketplace.pingonecredentials;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.ACTIVE;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.FAILURE_OUTCOME_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.NOT_FOUND_OUTCOME_ID;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_ACTIVE_WALLETS_DATA_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_USER_ID_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_WALLET_ID_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_STATUS;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.SUCCESS_OUTCOME_ID;
 import static org.forgerock.json.JsonValue.array;
@@ -24,6 +27,7 @@ import org.forgerock.json.JsonValue;
 import org.forgerock.oauth2.core.AccessToken;
 import org.forgerock.openam.annotations.sm.Attribute;
 import org.forgerock.openam.auth.node.api.Action;
+import org.forgerock.openam.auth.node.api.InputState;
 import org.forgerock.openam.auth.node.api.Node;
 import org.forgerock.openam.auth.node.api.NodeState;
 import org.forgerock.openam.auth.node.api.OutcomeProvider;
@@ -40,6 +44,7 @@ import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 
@@ -51,7 +56,6 @@ import java.util.ResourceBundle;
     tags = {"marketplace", "trustnetwork"})
 public class PingOneCredentialsFindWallets implements Node {
 
-    private final Config config;
     private final Realm realm;
     private final TNTPPingOneConfig tntpPingOneConfig;
 
@@ -75,11 +79,6 @@ public class PingOneCredentialsFindWallets implements Node {
             return TNTPPingOneConfigChoiceValues.createTNTPPingOneConfigName("Global Default");
         }
 
-        @Attribute(order = 200)
-        default String userIdAttribute() {
-            return "";
-        }
-
     }
 
     /**
@@ -91,7 +90,6 @@ public class PingOneCredentialsFindWallets implements Node {
      */
     @Inject
     public PingOneCredentialsFindWallets(@Assisted Config config, @Assisted Realm realm, Helper client) {
-        this.config = config;
         this.realm = realm;
         this.tntpPingOneConfig = TNTPPingOneConfigChoiceValues.getTNTPPingOneConfig(config.tntpPingOneConfigName());
         this.client = client;
@@ -121,14 +119,13 @@ public class PingOneCredentialsFindWallets implements Node {
                 return Action.goTo(FAILURE_OUTCOME_ID).build();
             }
 
-            JsonValue response = client.findWalletRequest(accessToken,
-                                                          tntpPingOneConfig.environmentRegion().getDomainSuffix(),
-                                                          tntpPingOneConfig.environmentId(),
-                                                          pingOneUserId);
+            Optional<JsonValue> response = client.findWalletRequest(accessToken,
+                                                                    tntpPingOneConfig.environmentRegion().getDomainSuffix(),
+                                                                    tntpPingOneConfig.environmentId(),
+                                                                    pingOneUserId);
 
-            if(response.isNotNull()) {
-
-                JsonValue wallets = response.get("_embedded").get("digitalWallets");
+            if(response.isPresent()) {
+                JsonValue wallets = response.get().get("_embedded").get("digitalWallets");
                 logger.error("All wallets: " + wallets);
 
                 JsonValue activeWallets = json(array());
@@ -144,7 +141,14 @@ public class PingOneCredentialsFindWallets implements Node {
                 }
 
                 logger.error("active_wallets: " + activeWallets);
-                nodeState.putTransient("wallets", activeWallets);
+
+                // If the active wallet size is one, set the wallet ID attribute in the shared state
+                // Otherwise if multiple wallets are returned, do not set the wallet ID attribute
+                if(activeWallets.size() == 1) {
+                    nodeState.putShared(PINGONE_WALLET_ID_KEY, activeWallets.get(0).get(RESPONSE_ID).asString());
+                }
+
+                nodeState.putShared(PINGONE_ACTIVE_WALLETS_DATA_KEY, activeWallets);
 
                 return Action.goTo(SUCCESS_OUTCOME_ID).build();
             } else {
@@ -158,6 +162,13 @@ public class PingOneCredentialsFindWallets implements Node {
             context.getStateFor(this).putTransient(loggerPrefix + "StackTrace", stackTrace);
             return Action.goTo(FAILURE_OUTCOME_ID).build();
         }
+    }
+
+    @Override
+    public InputState[] getInputs() {
+        return new InputState[] {
+            new InputState(PINGONE_USER_ID_KEY, true)
+        };
     }
 
     public static class IssueOutcomeProvider implements OutcomeProvider {

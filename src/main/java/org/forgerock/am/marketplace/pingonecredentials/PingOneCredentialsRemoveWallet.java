@@ -19,6 +19,7 @@ import org.forgerock.json.JsonValue;
 import org.forgerock.oauth2.core.AccessToken;
 import org.forgerock.openam.annotations.sm.Attribute;
 import org.forgerock.openam.auth.node.api.Action;
+import org.forgerock.openam.auth.node.api.InputState;
 import org.forgerock.openam.auth.node.api.Node;
 import org.forgerock.openam.auth.node.api.NodeState;
 import org.forgerock.openam.auth.node.api.OutcomeProvider;
@@ -70,11 +71,6 @@ public class PingOneCredentialsRemoveWallet implements Node {
         @Attribute(order = 100, choiceValuesClass = TNTPPingOneConfigChoiceValues.class)
         default String tntpPingOneConfigName() {
             return TNTPPingOneConfigChoiceValues.createTNTPPingOneConfigName("Global Default");
-        }
-
-        @Attribute(order = 200)
-        default String userIdAttribute() {
-            return "";
         }
 
         @Attribute(order = 300)
@@ -152,6 +148,13 @@ public class PingOneCredentialsRemoveWallet implements Node {
             context.getStateFor(this).putTransient(loggerPrefix + "StackTrace", stackTrace);
             return Action.goTo(FAILURE_OUTCOME_ID).build();
         }
+    }
+
+    @Override
+    public InputState[] getInputs() {
+        return new InputState[] {
+            new InputState(PINGONE_USER_ID_KEY, true)
+        };
     }
 
     public static class IssueOutcomeProvider implements OutcomeProvider {

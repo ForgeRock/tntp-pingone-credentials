@@ -78,11 +78,6 @@ public class PingOneCredentialsUpdate implements Node {
             return "";
         }
 
-        @Attribute(order = 300)
-        default String userIdAttribute() {
-            return "";
-        }
-
         @Attribute(order = 400)
         default String credentialId() {
             return "";
@@ -175,7 +170,12 @@ public class PingOneCredentialsUpdate implements Node {
 
         config.attributes().forEach(
             (k, v) -> {
-                if (v.startsWith("{") && v.endsWith("}")) {
+                if (sharedState.isDefined(k)) {
+                    attributes.put(k, sharedState.get(k));
+                }
+
+                // This approach seems unnecessary as it is possible to set static data on the credential in PingOne
+                /*if (v.startsWith("{") && v.endsWith("}")) {
                     String ssKey = v.substring(1, v.length() - 1);
                     if (sharedState.isDefined(ssKey)) {
                         attributes.put(k, sharedState.get(ssKey));
@@ -183,7 +183,7 @@ public class PingOneCredentialsUpdate implements Node {
                 }
                 else {
                     attributes.put(k, v);
-                }
+                }*/
             });
 
         return attributes;

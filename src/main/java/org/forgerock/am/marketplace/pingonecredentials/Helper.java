@@ -1,5 +1,6 @@
 package org.forgerock.am.marketplace.pingonecredentials;
 
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_STATUS;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.REVOKED;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.REVOKE_CONTENT_TYPE;
@@ -11,6 +12,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
 
 
 import javax.inject.Inject;
@@ -52,8 +54,8 @@ public class Helper {
 	    });
 	}
 
-	protected JsonValue findWalletRequest(AccessToken accessToken, String domainSuffix,
-	                                    String environmentId, String pingOneUID) throws Exception {
+	protected Optional<JsonValue> findWalletRequest(AccessToken accessToken, String domainSuffix,
+	                                                String environmentId, String pingOneUID) throws Exception {
 		Request request;
 
 		try {
@@ -74,10 +76,10 @@ public class Helper {
 			Response response = handler.handle(new RootContext(), request).getOrThrow();
 
 			if (response.getStatus().isSuccessful()) {
-				return json(response.getEntity().getJson());
+				return Optional.of(json(response.getEntity().getJson()));
 			}
 			else if(response.getStatus().equals(Status.NOT_FOUND)) {
-				return null;
+				return Optional.empty();
 			} else {
 				throw new Exception("PingOne Credentials Create a User Credential" + response.getStatus() + "-" + response.getEntity().getString());
 			}
@@ -86,9 +88,9 @@ public class Helper {
 		}
 	}
 
-	protected JsonValue credentialIssueRequest(AccessToken accessToken, String domainSuffix,
-	                                           String environmentId, String pingOneUID, String credentialTypeId,
-	                                           JsonValue attributes) throws Exception {
+	protected JsonValue credentialCreateRequest(AccessToken accessToken, String domainSuffix,
+	                                            String environmentId, String pingOneUID, String credentialTypeId,
+	                                            JsonValue attributes) throws Exception {
 		Request request;
 
 		try {
@@ -208,6 +210,8 @@ public class Helper {
 				notification.put("methods", notificationList);
 				body.put("notification", notification);
 			}
+
+			logger.error("body: "+ body);
 
 			request = new Request();
 			request.setUri(uri).setMethod(HttpConstants.Methods.POST);
@@ -387,7 +391,8 @@ public class Helper {
 			                "/v1/environments/" +
 			                environmentId +
 			                "/presentationSessions/" +
-			                sessionId;
+			                sessionId +
+			                "/sessionData";
 
 			URI uri = URI.create(theURI);
 

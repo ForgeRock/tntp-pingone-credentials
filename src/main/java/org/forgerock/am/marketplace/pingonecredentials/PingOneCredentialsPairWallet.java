@@ -14,7 +14,7 @@ import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_PAIRING_TIMEOUT_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_QR_URL;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_WALLET_ID_KEY;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_WALLET_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_WALLET_DATA_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_STATUS;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.TIMEOUT_OUTCOME_ID;
 import static org.forgerock.openam.auth.node.api.Action.send;
@@ -51,6 +51,7 @@ import org.forgerock.json.JsonValue;
 import org.forgerock.oauth2.core.AccessToken;
 import org.forgerock.openam.annotations.sm.Attribute;
 import org.forgerock.openam.auth.node.api.Action;
+import org.forgerock.openam.auth.node.api.InputState;
 import org.forgerock.openam.auth.node.api.Node;
 import org.forgerock.openam.auth.node.api.NodeState;
 import org.forgerock.openam.auth.node.api.OutcomeProvider;
@@ -114,11 +115,6 @@ public class PingOneCredentialsPairWallet implements Node {
 
         @Attribute(order = 200)
         default String digitalWalletApplicationId() {
-            return "";
-        }
-
-        @Attribute(order = 300)
-        default String userIdAttribute() {
             return "";
         }
 
@@ -245,20 +241,13 @@ public class PingOneCredentialsPairWallet implements Node {
             Optional<PollingWaitCallback> pollingWaitCallback = context.getCallback(PollingWaitCallback.class);
             if (pollingWaitCallback.isPresent()) {
                 // Transaction already started
-                logger.error("Identity Verification process already started. Waiting for completion...");
+                logger.error("Pairing process already started. Waiting for completion...");
                 if (!nodeState.isDefined(PINGONE_WALLET_ID_KEY)) {
-                    logger.error("Unable to find the PingOne Verify Transaction ID in sharedState.");
+                    logger.error("Unable to find the PingOne Credentials Wallet ID in sharedState.");
                     return buildAction(FAILURE_OUTCOME_ID, context);
                 }
                 return getActionFromPairingTransactionStatus(context, accessToken, pingOneUserId);
             } else {
-                // Check if it should resume a previous transaction set by the Completion Decision node
-                /*if (nodeState.isDefined(PINGONE_WALLET_ID_KEY)) {
-                    logger.debug("Resuming an Identity Verification process previously started.");
-                    nodeState.putShared(PINGONE_VERIFY_DELIVERY_METHOD_KEY, 0);
-                    nodeState.putShared(PINGONE_VERIFY_TIMEOUT_KEY, 0);
-                    return getActionFromPairingTransactionStatus(context, accessToken, pingOneUserId);
-                }*/
 
                 // Start new pairing transaction
                 if (config.allowDeliveryMethodSelection()) {
@@ -317,7 +306,7 @@ public class PingOneCredentialsPairWallet implements Node {
             case ACTIVE:
                 logger.error("Status is active, returning success");
                 if (config.storeWalletResponse()) {
-                    nodeState.putShared(PINGONE_WALLET_KEY, response);
+                    nodeState.putShared(PINGONE_WALLET_DATA_KEY, response);
                 }
                 return buildAction(SUCCESS_OUTCOME_ID, context);
             case EXPIRED:
@@ -348,14 +337,18 @@ public class PingOneCredentialsPairWallet implements Node {
                                                                digitalWalletApplicationId,
                                                                notificationList);
 
+        logger.error("Response: " + response);
         // Retrieve response values
         String digitalWalletId = response.get(RESPONSE_ID).asString();
         String qrUrl = response.get(RESPONSE_PAIRING_SESSION).get(RESPONSE_QR_URL).asString();
 
+        logger.error("digitalWalletId: " + digitalWalletId);
         // Store transaction ID in shared state
         NodeState nodeState = context.getStateFor(this);
         nodeState.putShared(PINGONE_WALLET_ID_KEY, digitalWalletId);
         nodeState.putShared(PINGONE_PAIRING_TIMEOUT_KEY, TRANSACTION_POLL_INTERVAL);
+
+        logger.error(nodeState.get(PINGONE_WALLET_ID_KEY).asString());
 
         // Create callbacks and send
         List<Callback> callbacks = getCallbacksForDeliveryMethod(context, pairingDeliveryMethod, qrUrl);
@@ -409,10 +402,7 @@ public class PingOneCredentialsPairWallet implements Node {
         int timeOutInMs = timeout * 1000;
         int timeElapsed = nodeState.get(PINGONE_PAIRING_TIMEOUT_KEY).asInteger();
 
-        logger.error("timeElapsed: " + timeElapsed);
-        logger.error("timeOutInMs: " + timeOutInMs);
         if (timeElapsed >= timeOutInMs) {
-            logger.error("Returning timeout.");
             return Action.goTo(TIMEOUT_OUTCOME_ID);
         } else {
             nodeState.putShared(PINGONE_PAIRING_TIMEOUT_KEY, timeElapsed + TRANSACTION_POLL_INTERVAL);
@@ -446,11 +436,22 @@ public class PingOneCredentialsPairWallet implements Node {
     }
 
     private Action.ActionBuilder cleanupSharedState(TreeContext context, Action.ActionBuilder builder) {
+        logger.error("Cleaning up shared state...");
         NodeState nodeState = context.getStateFor(this);
         nodeState.remove(PINGONE_WALLET_ID_KEY);
         nodeState.remove(PINGONE_PAIRING_DELIVERY_METHOD_KEY);
         nodeState.remove(PINGONE_PAIRING_TIMEOUT_KEY);
         return builder;
+    }
+
+    @Override
+    public InputState[] getInputs() {
+        return new InputState[] {
+            new InputState(PINGONE_USER_ID_KEY, true),
+            new InputState(PINGONE_WALLET_ID_KEY),
+            new InputState(PINGONE_PAIRING_DELIVERY_METHOD_KEY),
+            new InputState(PINGONE_PAIRING_TIMEOUT_KEY),
+            };
     }
 
     public static class ProofingOutcomeProvider implements OutcomeProvider {

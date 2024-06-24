@@ -52,7 +52,7 @@ import com.google.common.collect.ImmutableMap;
  */
 public class PingOneCredentialsPlugin extends AbstractNodeAmPlugin {
 
-	protected static final String currentVersion = "0.0.50";
+	protected static final String currentVersion = "0.0.56";
 	protected static final String logAppender = "[Version: " + currentVersion + "][Marketplace]";
 	private static final Logger logger = LoggerFactory.getLogger(PingOneCredentialsPlugin.class);
 	private final String loggerPrefix = "[PingOneCredentialsPlugin]" + PingOneCredentialsPlugin.logAppender;
@@ -68,7 +68,7 @@ public class PingOneCredentialsPlugin extends AbstractNodeAmPlugin {
 		return new ImmutableMap.Builder<String, Iterable<? extends Class<? extends Node>>>()
                 .put(currentVersion, asList(
 	                                    PingOneCredentialsPairWallet.class,
-	                                    PingOneCredentialsIssue.class,
+	                                    PingOneCredentialsCreate.class,
                 						PingOneCredentialsVerification.class,
 	                                    PingOneCredentialsFindWallets.class,
 	                                    PingOneCredentialsRemoveWallet.class,
@@ -115,7 +115,7 @@ public class PingOneCredentialsPlugin extends AbstractNodeAmPlugin {
 		logger.error(loggerPrefix + "currentVersion = " + currentVersion);
 		try {
 			pluginTools.upgradeAuthNode(PingOneCredentialsPairWallet.class);
-			pluginTools.upgradeAuthNode(PingOneCredentialsIssue.class);
+			pluginTools.upgradeAuthNode(PingOneCredentialsCreate.class);
 			pluginTools.upgradeAuthNode(PingOneCredentialsVerification.class);
 			pluginTools.upgradeAuthNode(PingOneCredentialsFindWallets.class);
 			pluginTools.upgradeAuthNode(PingOneCredentialsRemoveWallet.class);
