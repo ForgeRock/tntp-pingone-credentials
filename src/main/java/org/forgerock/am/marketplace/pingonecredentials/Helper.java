@@ -54,7 +54,7 @@ public class Helper {
 	    });
 	}
 
-	protected Optional<JsonValue> findWalletRequest(AccessToken accessToken, String domainSuffix,
+	protected JsonValue findWalletRequest(AccessToken accessToken, String domainSuffix,
 	                                                String environmentId, String pingOneUID) throws Exception {
 		Request request;
 
@@ -67,6 +67,8 @@ public class Helper {
 			                pingOneUID +
 			                "/digitalWallets";
 
+			logger.error(theURI);
+
 			URI uri = URI.create(theURI);
 
 			request = new Request();
@@ -76,12 +78,10 @@ public class Helper {
 			Response response = handler.handle(new RootContext(), request).getOrThrow();
 
 			if (response.getStatus().isSuccessful()) {
-				return Optional.of(json(response.getEntity().getJson()));
-			}
-			else if(response.getStatus().equals(Status.NOT_FOUND)) {
-				return Optional.empty();
+				return json(response.getEntity().getJson());
 			} else {
-				throw new Exception("PingOne Credentials Create a User Credential" + response.getStatus() + "-" + response.getEntity().getString());
+				throw new Exception("PingOne Credentials Find a Wallet" + response.getStatus() +
+				                    "-" + response.getEntity().getString());
 			}
 		} catch (Exception e) {
 			throw new Exception("Failed PingOne Credentials", e);

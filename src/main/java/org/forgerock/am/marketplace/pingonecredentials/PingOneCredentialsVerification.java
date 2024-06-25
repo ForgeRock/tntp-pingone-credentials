@@ -15,6 +15,7 @@ import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_DELIVERY_METHOD_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_SESSION_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_VERIFICATION_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_APPOPENURL;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_HREF;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_LINKS;
@@ -203,7 +204,7 @@ public class PingOneCredentialsVerification implements Node {
 		 */
 		@Attribute(order = 1300)
 		default boolean storeVerificationResponse() {
-			return false;
+			return true;
 		}
 
 	}
@@ -301,7 +302,7 @@ public class PingOneCredentialsVerification implements Node {
 		logger.error("readVerificationSession: " + response.toString());
 		// Retrieve response values
 		String status = response.get(RESPONSE_STATUS).asString();
-		String qrUrl = response.get(RESPONSE_LINKS).get(RESPONSE_QR).get(RESPONSE_HREF).asString();
+		String qrUrl = response.get(RESPONSE_LINKS).get(RESPONSE_APPOPENURL).get(RESPONSE_HREF).asString();
 
 		switch (status) {
 			case INITIAL:
@@ -342,7 +343,7 @@ public class PingOneCredentialsVerification implements Node {
 
 			// Retrieve response values
 			String sessionId = response.get(RESPONSE_ID).asString();
-			qrUrl = response.get(RESPONSE_LINKS).get(RESPONSE_QR).get(RESPONSE_HREF).asString();
+			qrUrl = response.get(RESPONSE_LINKS).get(RESPONSE_APPOPENURL).get(RESPONSE_HREF).asString();
 
 			// Store transaction ID in shared state
 			NodeState nodeState = context.getStateFor(this);

@@ -13,8 +13,10 @@ import static org.forgerock.am.marketplace.pingonecredentials.Constants.FAILURE_
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.NOT_FOUND_OUTCOME_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.OBJECT_ATTRIBUTES;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_ACTIVE_WALLETS_DATA_KEY;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_USER_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_WALLET_ID_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_USER_ID_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_DIGITALWALLETS;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_EMBEDDED;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_STATUS;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.SUCCESS_OUTCOME_ID;
@@ -45,7 +47,6 @@ import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.ResourceBundle;
 
 
@@ -132,41 +133,39 @@ public class PingOneCredentialsFindWallets implements Node {
                 return Action.goTo(FAILURE_OUTCOME_ID).build();
             }
 
-            Optional<JsonValue> response = client.findWalletRequest(accessToken,
-                                                                    tntpPingOneConfig.environmentRegion().getDomainSuffix(),
-                                                                    tntpPingOneConfig.environmentId(),
-                                                                    pingOneUserId);
+            JsonValue response = client.findWalletRequest(accessToken,
+                                                          tntpPingOneConfig.environmentRegion().getDomainSuffix(),
+                                                          tntpPingOneConfig.environmentId(),
+                                                          pingOneUserId);
 
-            if(response.isPresent()) {
-                JsonValue wallets = response.get().get("_embedded").get("digitalWallets");
-                logger.error("All wallets: " + wallets);
+            JsonValue wallets = response.get(RESPONSE_EMBEDDED).get(RESPONSE_DIGITALWALLETS);
+            logger.error("All wallets: " + wallets);
 
-                JsonValue activeWallets = json(array());
+            JsonValue activeWallets = json(array());
 
-                for (JsonValue obj : wallets) {
-                    logger.error(obj.toString());
+            for (JsonValue obj : wallets) {
+                logger.error(obj.toString());
 
-                    String walletStatus = obj.get(RESPONSE_STATUS).asString();
+                String walletStatus = obj.get(RESPONSE_STATUS).asString();
 
-                    if (walletStatus.equals(ACTIVE)) {
-                        activeWallets.add(obj);
-                    }
+                if (walletStatus.equals(ACTIVE)) {
+                    activeWallets.add(obj);
                 }
+            }
 
-                logger.error("active_wallets: " + activeWallets);
-
+            logger.error("active_wallets: " + activeWallets);
+            if(activeWallets.size() == 0) {
+                return Action.goTo(NOT_FOUND_OUTCOME_ID).build();
+            } else if(activeWallets.size() == 1) {
                 // If the active wallet size is one, set the wallet ID attribute in the shared state
                 // Otherwise if multiple wallets are returned, do not set the wallet ID attribute
-                if(activeWallets.size() == 1) {
-                    nodeState.putShared(PINGONE_WALLET_ID_KEY, activeWallets.get(0).get(RESPONSE_ID).asString());
-                }
 
-                nodeState.putShared(PINGONE_ACTIVE_WALLETS_DATA_KEY, activeWallets);
-
-                return Action.goTo(SUCCESS_OUTCOME_ID).build();
-            } else {
-                return Action.goTo(NOT_FOUND_OUTCOME_ID).build();
+                nodeState.putShared(PINGONE_WALLET_ID_KEY, activeWallets.get(0).get(RESPONSE_ID).asString());
             }
+
+            nodeState.putShared(PINGONE_ACTIVE_WALLETS_DATA_KEY, activeWallets);
+
+            return Action.goTo(SUCCESS_OUTCOME_ID).build();
         }
         catch (Exception ex) {
             String stackTrace = org.apache.commons.lang.exception.ExceptionUtils.getStackTrace(ex);

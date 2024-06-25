@@ -161,8 +161,8 @@ public class PingOneCredentialsCreate implements Node {
 
         config.attributes().forEach(
             (k, v) -> {
-                if (sharedState.isDefined(k)) {
-                    attributes.put(k, sharedState.get(k));
+                if (sharedState.isDefined(v)) {
+                    attributes.put(k, sharedState.get(v));
                 }
             });
 

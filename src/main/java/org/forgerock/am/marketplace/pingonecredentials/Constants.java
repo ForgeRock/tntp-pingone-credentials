@@ -5,8 +5,11 @@ public class Constants {
 	public static final String PINGONE_USER_ID_KEY = "pingOneUserId";
 	public static final String PINGONE_PAIRING_DELIVERY_METHOD_KEY = "pingOneWalletPairingDeliveryMethod";
 	public static final String PINGONE_PAIRING_TIMEOUT_KEY = "pingOnePairingTimeout";
+	public static final String PINGONE_APPOPEN_URL_KEY = "pingOneAppOpenURL";
+	public static final String PINGONE_PAIRING_WALLET_ID_KEY = "pingOnePairingWalletId";
+
 	public static final String PINGONE_WALLET_ID_KEY = "pingOneWalletId";
-	public static final String PINGONE_WALLET_DATA_KEY = "pingOneWallet";
+	public static final String PINGONE_WALLET_DATA_KEY = "pingOneWalletData";
 	public static final String PINGONE_ACTIVE_WALLETS_DATA_KEY = "pingOneActiveWallets";
 
 	public static final String PINGONE_VERIFICATION_DELIVERY_METHOD_KEY = "pingOneVerificationDeliveryMethod";
@@ -23,8 +26,12 @@ public class Constants {
 	public static final String RESPONSE_QR_URL = "qrUrl";
 
 	public static final String RESPONSE_LINKS = "_links";
+	public static final String RESPONSE_APPOPEN = "appOpen";
+	public static final String RESPONSE_APPOPENURL = "appOpenUrl";
 	public static final String RESPONSE_QR = "qr";
 	public static final String RESPONSE_HREF = "href";
+	public static final String RESPONSE_EMBEDDED = "_embedded";
+	public static final String RESPONSE_DIGITALWALLETS = "digitalWallets";
 
 	public static final String ACTIVE = "ACTIVE";
 	public static final String PAIRING_REQUIRED = "PAIRING_REQUIRED";

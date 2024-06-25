@@ -11,10 +11,13 @@ package org.forgerock.am.marketplace.pingonecredentials;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.ACTIVE;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.EXPIRED;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.OBJECT_ATTRIBUTES;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_PAIRING_SESSION;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_PAIRING_TIMEOUT_KEY;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_QR_URL;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_APPOPEN_URL_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_WALLET_ID_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_APPOPEN;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_HREF;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_LINKS;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_PAIRING_TIMEOUT_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_PAIRING_WALLET_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_WALLET_DATA_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_STATUS;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.TIMEOUT_OUTCOME_ID;
@@ -258,7 +261,7 @@ public class PingOneCredentialsPairWallet implements Node {
             if (pollingWaitCallback.isPresent()) {
                 // Transaction already started
                 logger.error("Pairing process already started. Waiting for completion...");
-                if (!nodeState.isDefined(PINGONE_WALLET_ID_KEY)) {
+                if (!nodeState.isDefined(PINGONE_PAIRING_WALLET_ID_KEY)) {
                     logger.error("Unable to find the PingOne Credentials Wallet ID in sharedState.");
                     return buildAction(FAILURE_OUTCOME_ID, context);
                 }
@@ -292,7 +295,7 @@ public class PingOneCredentialsPairWallet implements Node {
         NodeState nodeState = context.getStateFor(this);
 
         // Retrieve transaction ID from shared state
-        String walletId = Objects.requireNonNull(nodeState.get(PINGONE_WALLET_ID_KEY)).asString();
+        String walletId = Objects.requireNonNull(nodeState.get(PINGONE_PAIRING_WALLET_ID_KEY)).asString();
 
         // Determine delivery method
         Constants.PairingDeliveryMethod pairingDeliveryMethod;
@@ -312,15 +315,24 @@ public class PingOneCredentialsPairWallet implements Node {
         logger.error("readWallet: " + response.toString());
         // Retrieve response values
         String status = response.get(RESPONSE_STATUS).asString();
-        String qrUrl = response.get(RESPONSE_PAIRING_SESSION).get(RESPONSE_QR_URL).asString();
+        //String qrUrl = response.get(RESPONSE_PAIRING_SESSION).get(RESPONSE_QR_URL).asString();
 
         switch (status) {
             case PAIRING_REQUIRED:
                 logger.error("Status is pairing required, waiting...");
-                List<Callback> callbacks = getCallbacksForDeliveryMethod(context, pairingDeliveryMethod, qrUrl);
-                return waitTransactionCompletion(nodeState, callbacks, config.timeout()).build();
+
+                if(nodeState.isDefined(PINGONE_APPOPEN_URL_KEY)) {
+                    String qrUrl = nodeState.get(PINGONE_APPOPEN_URL_KEY).asString();
+
+                    List<Callback> callbacks = getCallbacksForDeliveryMethod(context, pairingDeliveryMethod, qrUrl);
+                    return waitTransactionCompletion(nodeState, callbacks, config.timeout()).build();
+                } else {
+                    throw new IllegalStateException("Missing AppOpen URL in nodeState.");
+                }
             case ACTIVE:
                 logger.error("Status is active, returning success");
+                nodeState.putShared(PINGONE_WALLET_ID_KEY, response.get(RESPONSE_ID));
+
                 if (config.storeWalletResponse()) {
                     nodeState.putShared(PINGONE_WALLET_DATA_KEY, response);
                 }
@@ -361,15 +373,22 @@ public class PingOneCredentialsPairWallet implements Node {
         logger.error("Response: " + response);
         // Retrieve response values
         String digitalWalletId = response.get(RESPONSE_ID).asString();
-        String qrUrl = response.get(RESPONSE_PAIRING_SESSION).get(RESPONSE_QR_URL).asString();
+        //String qrUrl = response.get(RESPONSE_PAIRING_SESSION).get(RESPONSE_QR_URL).asString();
+        String appOpenUrl = response.get(RESPONSE_LINKS).get(RESPONSE_APPOPEN).get(RESPONSE_HREF).asString();
 
         logger.error("digitalWalletId: " + digitalWalletId);
         // Store transaction ID in shared state
         NodeState nodeState = context.getStateFor(this);
-        nodeState.putShared(PINGONE_WALLET_ID_KEY, digitalWalletId);
+        nodeState.putShared(PINGONE_PAIRING_WALLET_ID_KEY, digitalWalletId);
         nodeState.putShared(PINGONE_PAIRING_TIMEOUT_KEY, TRANSACTION_POLL_INTERVAL);
 
-        logger.error(nodeState.get(PINGONE_WALLET_ID_KEY).asString());
+        // Store the app open URL to be used during the polling
+        nodeState.putTransient(PINGONE_APPOPEN_URL_KEY, appOpenUrl);
+
+        logger.error(nodeState.get(PINGONE_PAIRING_WALLET_ID_KEY).asString());
+
+        // Use the App Open URL for the QR Code URL
+        String qrUrl = appOpenUrl;
 
         // Create callbacks and send
         List<Callback> callbacks = getCallbacksForDeliveryMethod(context, pairingDeliveryMethod, qrUrl);
@@ -460,7 +479,7 @@ public class PingOneCredentialsPairWallet implements Node {
     private Action.ActionBuilder cleanupSharedState(TreeContext context, Action.ActionBuilder builder) {
         logger.error("Cleaning up shared state...");
         NodeState nodeState = context.getStateFor(this);
-        nodeState.remove(PINGONE_WALLET_ID_KEY);
+        nodeState.remove(PINGONE_PAIRING_WALLET_ID_KEY);
         nodeState.remove(PINGONE_PAIRING_DELIVERY_METHOD_KEY);
         nodeState.remove(PINGONE_PAIRING_TIMEOUT_KEY);
         return builder;
@@ -470,9 +489,10 @@ public class PingOneCredentialsPairWallet implements Node {
     public InputState[] getInputs() {
         return new InputState[] {
             new InputState(PINGONE_USER_ID_KEY, true),
-            new InputState(PINGONE_WALLET_ID_KEY),
+            new InputState(PINGONE_PAIRING_WALLET_ID_KEY),
             new InputState(PINGONE_PAIRING_DELIVERY_METHOD_KEY),
             new InputState(PINGONE_PAIRING_TIMEOUT_KEY),
+            new InputState(PINGONE_APPOPEN_URL_KEY),
             };
     }
 

@@ -9,6 +9,7 @@
 package org.forgerock.am.marketplace.pingonecredentials;
 
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.OBJECT_ATTRIBUTES;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_WALLET_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_USER_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.SUCCESS_OUTCOME_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.NOT_FOUND_OUTCOME_ID;
@@ -76,9 +77,8 @@ public class PingOneCredentialsRemoveWallet implements Node {
 
         @Attribute(order = 300)
         default String digitalWalletIdAttribute() {
-            return "";
+            return PINGONE_WALLET_ID_KEY;
         }
-
     }
 
     /**
@@ -125,6 +125,9 @@ public class PingOneCredentialsRemoveWallet implements Node {
                 return Action.goTo(FAILURE_OUTCOME_ID).build();
             }
 
+            logger.error(config.digitalWalletIdAttribute());
+            logger.error("nodeState: " + nodeState.get("pingOnePairedWalletId").asString());
+
             // Check if Digital Wallet ID attribute is set in sharedState
             String digitalWalletId = nodeState.isDefined(config.digitalWalletIdAttribute())
                                   ? nodeState.get(config.digitalWalletIdAttribute()).asString()
@@ -166,7 +169,8 @@ public class PingOneCredentialsRemoveWallet implements Node {
     @Override
     public InputState[] getInputs() {
         return new InputState[] {
-            new InputState(PINGONE_USER_ID_KEY, true)
+            new InputState(PINGONE_USER_ID_KEY, true),
+            new InputState(PINGONE_WALLET_ID_KEY)
         };
     }
 

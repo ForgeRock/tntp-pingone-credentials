@@ -142,10 +142,10 @@ public class PingOneCredentialsRevoke implements Node {
             }
 
             RevokeResult result = client.revokeCredentialRequest(accessToken,
-                                                                           tntpPingOneConfig.environmentRegion().getDomainSuffix(),
-                                                                           tntpPingOneConfig.environmentId(),
-                                                                           pingOneUserId,
-                                                                           credentialId);
+                                                                   tntpPingOneConfig.environmentRegion().getDomainSuffix(),
+                                                                   tntpPingOneConfig.environmentId(),
+                                                                   pingOneUserId,
+                                                                   credentialId);
 
             if(result.equals(RevokeResult.REVOKED)) {
                 return Action.goTo(SUCCESS_OUTCOME_ID).build();
@@ -170,7 +170,7 @@ public class PingOneCredentialsRevoke implements Node {
             List<Outcome> results = new ArrayList<>();
             results.add(new Outcome(SUCCESS_OUTCOME_ID, bundle.getString("successOutcome")));
             results.add(new Outcome(NOT_FOUND_OUTCOME_ID, bundle.getString("notFoundOutcome")));
-            results.add(new Outcome(FAILURE_OUTCOME_ID, bundle.getString("errorOutcome")));
+            results.add(new Outcome(FAILURE_OUTCOME_ID, bundle.getString("failureOutcome")));
             return Collections.unmodifiableList(results);
         }
     }
