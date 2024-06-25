@@ -10,6 +10,7 @@ package org.forgerock.am.marketplace.pingonecredentials;
 
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.ACTIVE;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.EXPIRED;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.OBJECT_ATTRIBUTES;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_PAIRING_SESSION;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_PAIRING_TIMEOUT_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_QR_URL;
@@ -118,6 +119,7 @@ public class PingOneCredentialsPairWallet implements Node {
             return "";
         }
 
+
         /**
          * The Pairing URL delivery method.
          *
@@ -211,9 +213,23 @@ public class PingOneCredentialsPairWallet implements Node {
             NodeState nodeState = context.getStateFor(this);
 
             // Check if PingOne User ID attribute is set in sharedState
-            String pingOneUserId = nodeState.isDefined(PINGONE_USER_ID_KEY)
+            String pingOneUserId;
+
+            pingOneUserId = nodeState.isDefined(PINGONE_USER_ID_KEY)
                                    ? nodeState.get(PINGONE_USER_ID_KEY).asString()
                                    : null;
+
+            // Check if PingOne User ID attribute is in objectAttributes
+            if (StringUtils.isBlank(pingOneUserId)) {
+                if(nodeState.isDefined(OBJECT_ATTRIBUTES)) {
+                    JsonValue objectAttributes = nodeState.get(OBJECT_ATTRIBUTES);
+
+                    pingOneUserId = objectAttributes.isDefined(PINGONE_USER_ID_KEY)
+                                    ? objectAttributes.get(PINGONE_USER_ID_KEY).asString()
+                                    : null;
+                }
+            }
+
             if (StringUtils.isBlank(pingOneUserId)) {
                 logger.error("Expected PingOne User ID to be set in sharedState.");
                 return buildAction(FAILURE_OUTCOME_ID, context);
@@ -325,9 +341,14 @@ public class PingOneCredentialsPairWallet implements Node {
         List<String> notificationList = new ArrayList<String>();
 
         if(pairingDeliveryMethod.equals(PairingDeliveryMethod.EMAIL) ||
-           pairingDeliveryMethod.equals(PairingDeliveryMethod.SMS) ||
-           pairingDeliveryMethod.equals(PairingDeliveryMethod.EMAIL_SMS)) {
+           pairingDeliveryMethod.equals(PairingDeliveryMethod.SMS)) {
             notificationList.add(pairingDeliveryMethod.name());
+        } else if(pairingDeliveryMethod.equals(PairingDeliveryMethod.EMAIL_SMS)) {
+            notificationList.add(PairingDeliveryMethod.EMAIL.name());
+            notificationList.add(PairingDeliveryMethod.SMS.name());
+        } else if(pairingDeliveryMethod.equals(PairingDeliveryMethod.QR_CODE_EMAIL_SMS)){
+            notificationList.add(PairingDeliveryMethod.EMAIL.name());
+            notificationList.add(PairingDeliveryMethod.SMS.name());
         }
 
         JsonValue response = client.createDigitalWalletRequest(accessToken,
@@ -355,7 +376,7 @@ public class PingOneCredentialsPairWallet implements Node {
         return send(callbacks).build();
     }
 
-    private List<Callback> getCallbacksForDeliveryMethod(TreeContext context, Constants.PairingDeliveryMethod pairingDeliveryMethod,
+    private List<Callback> getCallbacksForDeliveryMethod(TreeContext context, PairingDeliveryMethod pairingDeliveryMethod,
                                                          String url) {
         String waitingMessage = getWaitingMessage(context);
 
@@ -364,7 +385,8 @@ public class PingOneCredentialsPairWallet implements Node {
                                                       .withMessage(waitingMessage)
                                                       .build();
 
-        if (pairingDeliveryMethod.equals(Constants.PairingDeliveryMethod.QRCODE)) {
+        if (pairingDeliveryMethod.equals(PairingDeliveryMethod.QRCODE) ||
+            pairingDeliveryMethod.equals(PairingDeliveryMethod.QR_CODE_EMAIL_SMS)) {
             Callback scanTextOutputCallback = createLocalizedTextCallback(context, this.getClass(),
                                                                           config.scanQRCodeMessage(), SCAN_QR_CODE_MSG_KEY);
 

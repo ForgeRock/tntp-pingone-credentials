@@ -36,10 +36,6 @@ public class Constants {
 
 	public final static String OBJECT_ATTRIBUTES = "objectAttributes";
 
-
-	protected final static String KEY = "key";
-	protected final static String VALUE = "value";
-
 	// Outcomes
 	public static final String SUCCESS_OUTCOME_ID = "success";
 	public static final String FAILURE_OUTCOME_ID = "failure";
@@ -66,7 +62,11 @@ public class Constants {
 		/**
 		 * E-mail and SMS
 		 */
-		EMAIL_SMS;
+		EMAIL_SMS,
+		/**
+		 * E-mail and SMS
+		 */
+		QR_CODE_EMAIL_SMS;
 
 
 		/**

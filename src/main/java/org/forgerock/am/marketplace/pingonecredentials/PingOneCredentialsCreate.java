@@ -9,6 +9,7 @@
 package org.forgerock.am.marketplace.pingonecredentials;
 
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.FAILURE_OUTCOME_ID;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.OBJECT_ATTRIBUTES;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_USER_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_ID;
@@ -110,6 +111,18 @@ public class PingOneCredentialsCreate implements Node {
             String pingOneUserId = nodeState.isDefined(PINGONE_USER_ID_KEY)
                                    ? nodeState.get(PINGONE_USER_ID_KEY).asString()
                                    : null;
+
+            // Check if PingOne User ID attribute is in objectAttributes
+            if (StringUtils.isBlank(pingOneUserId)) {
+                if(nodeState.isDefined(OBJECT_ATTRIBUTES)) {
+                    JsonValue objectAttributes = nodeState.get(OBJECT_ATTRIBUTES);
+
+                    pingOneUserId = objectAttributes.isDefined(PINGONE_USER_ID_KEY)
+                                    ? objectAttributes.get(PINGONE_USER_ID_KEY).asString()
+                                    : null;
+                }
+            }
+
             if (StringUtils.isBlank(pingOneUserId)) {
                 logger.error("Expected PingOne User ID to be set in sharedState.");
                 return Action.goTo(FAILURE_OUTCOME_ID).build();
