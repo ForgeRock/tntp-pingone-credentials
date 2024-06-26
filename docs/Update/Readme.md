@@ -1,6 +1,6 @@
 # PingOne Credentials Update
 
-The PingOne Credentials Update node lets administrators update an existing PingOne Credential in a Journey.
+The PingOne Credentials Update node lets you update a PingOne credential in a journey.
 
 ## Compatibility
 
@@ -33,9 +33,7 @@ The PingOne Credentials Update node lets administrators update an existing PingO
 
 ## Inputs
 
-This node retrieves from the journey state:
-* **The PingOne User ID**
-* **The Credential Type ID**
+This node retrieves `PingOne User ID` and `Credential Type ID` from the journey state.
 
 ## Configuration
 
@@ -51,22 +49,19 @@ This node retrieves from the journey state:
       </td>
     </tr>
   <tr>
-    <td>Credential Type Id</td>
+    <td>Credential Type ID</td>
     <td>The requested credential name</td>
   </tr>
      <tr>
-      <td>PingOne User ID Attribute</td>
-      <td>Local attribute name to retrieve the PingOne userID from.  Will look in journey state first, then the local datastore
-</td>
-    </tr>
-     <tr>
       <td>Credential Id Attribute</td>
-      <td>Local attribute name to retrieve the Credential Id Attribute from the journey state.
+      <td>The local attribute name to retrieve the credential ID attribute from the journey state.
 </td>
     </tr>
      <tr>
       <td>Attribute map</td>
-      <td>Map Shared State attributes to the Credential. The KEY is the Shared State attribute and the Value is the Credential attribute title.</td>
+      <td>The Key - Value mapping used for associating journey state attributes to
+credentials. The `Key` is the PingOne credential attribute, and the `Value` is the
+corresponding journey state attribute.</td>
     </tr>
 
   </tbody>
@@ -74,7 +69,7 @@ This node retrieves from the journey state:
 
 ## Outputs
 
-None
+`pingOneCredentialUpdate` - The response from the PingOne Credentials Update operation.
 
 ## Outcomes
 

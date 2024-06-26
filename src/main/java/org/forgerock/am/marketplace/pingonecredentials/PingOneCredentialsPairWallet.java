@@ -122,7 +122,6 @@ public class PingOneCredentialsPairWallet implements Node {
             return "";
         }
 
-
         /**
          * The Pairing URL delivery method.
          *
@@ -493,6 +492,7 @@ public class PingOneCredentialsPairWallet implements Node {
             new InputState(PINGONE_PAIRING_DELIVERY_METHOD_KEY),
             new InputState(PINGONE_PAIRING_TIMEOUT_KEY),
             new InputState(PINGONE_APPOPEN_URL_KEY),
+            new InputState(OBJECT_ATTRIBUTES)
             };
     }
 

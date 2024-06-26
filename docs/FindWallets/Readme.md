@@ -1,6 +1,6 @@
 # PingOne Credentials Find Wallets
 
-The PingOne Credentials Find Wallet node lets administrators create a Journey which returns all the paired digital wallet from the PingOne user.
+The PingOne Credentials Find Wallets node lets you create a journey to list all the paired digital wallets from the PingOne user.
 
 ## Compatibility
 
@@ -33,8 +33,7 @@ The PingOne Credentials Find Wallet node lets administrators create a Journey wh
 
 ## Inputs
 
-This node retrieves from the journey state:
-* **The PingOne User ID**
+This node retrieves `pingOneUserId` from the journey state or from the `objectAttributes` within the journey state.
 
 ## Configuration
 
@@ -49,10 +48,6 @@ This node retrieves from the journey state:
       <td>Marketplace Service to integrate with PingOne Services
       </td>
     </tr>
-  <tr>
-      <td>PingOne User ID Attribute</td>
-      <td>Local attribute name to retrieve the PingOne userID from.  Will look in journey state first, then the local datastore
-</td>
   </tr>
 
   </tbody>
@@ -60,18 +55,20 @@ This node retrieves from the journey state:
 
 ## Outputs
 
-None
+`pingOneWalletId` - The PingOne digital wallet ID.
+`pingOneApplicationInstanceId` - The Application Instance ID of the digital wallet where the credential was stored.
+`pingOneActiveWallets` - The PingOne User's active digital wallets.`
 
 ## Outcomes
 
 `Success`
-All configured checks passed.
+All digital wallets were found and returned
 
 `Not Found`
-No digital wallet was found to remove.
+No digital wallet was found.
 
 `Failure`
-There was an error during the Wallet Find process
+There was an error during the process of finding the wallet.
 
 ## Troubleshooting
 

@@ -1,6 +1,7 @@
-# PingOne Credentials Issue
+# PingOne Credentials Create node
 
-The PingOne Credentials Issue node lets administrators create a PingOne Credential in a Journey.
+The PingOne Credentials Create node lets you create a PingOne credential in a
+journey.
 
 ## Compatibility
 
@@ -33,9 +34,7 @@ The PingOne Credentials Issue node lets administrators create a PingOne Credenti
 
 ## Inputs
 
-This node retrieves from the journey state:
-* **The PingOne User ID**
-* **The Credential Type ID**
+This node retrieves `PingOne User ID` and `Credential Type ID` from the journey state.
 
 ## Configuration
 
@@ -51,17 +50,15 @@ This node retrieves from the journey state:
       </td>
     </tr>
   <tr>
-    <td>Credential Type Id</td>
+    <td>Credential Type ID</td>
     <td>The requested credential name</td>
   </tr>
-     <tr>
-      <td>PingOne User ID Attribute</td>
-      <td>Local attribute name to retrieve the PingOne userID from.  Will look in journey state first, then the local datastore
-</td>
     </tr>
      <tr>
       <td>Attribute map</td>
-      <td>Map Shared State attributes to the Credential. The KEY is the Shared State attribute and the Value is the Credential attribute title.</td>
+      <td>The Key - Value mapping used for associating journey state attributes to
+credentials. The `Key` is the PingOne credential attribute, and the `Value` is the
+corresponding journey state attribute.</td>
     </tr>
 
   </tbody>
@@ -69,7 +66,8 @@ This node retrieves from the journey state:
 
 ## Outputs
 
-None
+`pingOneCredentialId` - The ID of the created credential.
+
 
 ## Outcomes
 
@@ -77,7 +75,7 @@ None
 All configured checks passed.
 
 `Failure`
-There was an error during the Issuing process
+There was an error during the Create process
 
 ## Troubleshooting
 

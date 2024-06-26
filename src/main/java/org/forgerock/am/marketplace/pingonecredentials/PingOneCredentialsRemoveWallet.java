@@ -170,7 +170,8 @@ public class PingOneCredentialsRemoveWallet implements Node {
     public InputState[] getInputs() {
         return new InputState[] {
             new InputState(PINGONE_USER_ID_KEY, true),
-            new InputState(PINGONE_WALLET_ID_KEY)
+            new InputState(PINGONE_WALLET_ID_KEY),
+            new InputState(OBJECT_ATTRIBUTES)
         };
     }
 

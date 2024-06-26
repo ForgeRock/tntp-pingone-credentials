@@ -1,6 +1,6 @@
 # PingOne Credentials Verification
 
-The PingOne Credentials Verification node lets administrators configure a journey to verify a PingOne Credential
+The PingOne Credentials Verification node lets administrators configure a journey to verify a PingOne Credential.
 
 ## Compatibility
 

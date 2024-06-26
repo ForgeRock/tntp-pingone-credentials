@@ -13,8 +13,10 @@ import static org.forgerock.am.marketplace.pingonecredentials.Constants.FAILURE_
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.NOT_FOUND_OUTCOME_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.OBJECT_ATTRIBUTES;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_ACTIVE_WALLETS_DATA_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_APPLICATION_INSTANCE_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_WALLET_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_USER_ID_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_APPLICATION_INSTANCE;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_DIGITALWALLETS;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_EMBEDDED;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_ID;
@@ -160,7 +162,11 @@ public class PingOneCredentialsFindWallets implements Node {
                 // If the active wallet size is one, set the wallet ID attribute in the shared state
                 // Otherwise if multiple wallets are returned, do not set the wallet ID attribute
 
-                nodeState.putShared(PINGONE_WALLET_ID_KEY, activeWallets.get(0).get(RESPONSE_ID).asString());
+                String walletId = activeWallets.get(0).get(RESPONSE_ID).asString();
+                String applicationInstanceId = activeWallets.get(0).get(RESPONSE_APPLICATION_INSTANCE).get(RESPONSE_ID).asString();
+
+                nodeState.putShared(PINGONE_WALLET_ID_KEY, walletId);
+                nodeState.putShared(PINGONE_APPLICATION_INSTANCE_ID_KEY, applicationInstanceId);
             }
 
             nodeState.putShared(PINGONE_ACTIVE_WALLETS_DATA_KEY, activeWallets);
@@ -179,7 +185,8 @@ public class PingOneCredentialsFindWallets implements Node {
     @Override
     public InputState[] getInputs() {
         return new InputState[] {
-            new InputState(PINGONE_USER_ID_KEY, true)
+            new InputState(PINGONE_USER_ID_KEY, true),
+            new InputState(OBJECT_ATTRIBUTES)
         };
     }
 

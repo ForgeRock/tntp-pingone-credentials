@@ -11,15 +11,19 @@ package org.forgerock.am.marketplace.pingonecredentials;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.EXPIRED;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.FAILURE_OUTCOME_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.INITIAL;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.OBJECT_ATTRIBUTES;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_APPLICATION_INSTANCE_ID_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_USER_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_TIMEOUT_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_DELIVERY_METHOD_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_SESSION_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_VERIFICATION_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.REQUESTED_CREDENTIALS;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_APPLICATION_INSTANCE;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_APPOPENURL;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_HREF;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_LINKS;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_QR;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_STATUS;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.SUCCESS_OUTCOME_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.TIMEOUT_OUTCOME_ID;
@@ -44,6 +48,7 @@ import javax.security.auth.callback.TextOutputCallback;
 import com.google.common.collect.ImmutableList;
 import com.sun.identity.authentication.callbacks.HiddenValueCallback;
 import com.sun.identity.authentication.callbacks.ScriptTextOutputCallback;
+import org.apache.commons.lang.StringUtils;
 import org.forgerock.json.JsonValue;
 import org.forgerock.oauth2.core.AccessToken;
 import org.forgerock.openam.annotations.sm.Attribute;
@@ -134,12 +139,12 @@ public class PingOneCredentialsVerification implements Node {
 		}
 
 		@Attribute(order = 500)
-		default String applicationInstanceId() {
-			return "";
-		}
+		default String digitalWalletApplicationId() {return ""; }
 
 		@Attribute(order = 600)
-		default String digitalWalletApplicationId() {return ""; }
+		default String applicationInstanceAttribute() {
+			return PINGONE_APPLICATION_INSTANCE_ID_KEY;
+		}
 
 		/**
 		 * Allow user to choose the URL delivery method.
@@ -205,6 +210,15 @@ public class PingOneCredentialsVerification implements Node {
 		@Attribute(order = 1300)
 		default boolean storeVerificationResponse() {
 			return true;
+		}
+
+		/**
+		 * Toggle if a custom requested credentials payload should be used
+		 * @return true if the create verification response should be stored, false otherwise.
+		 */
+		@Attribute(order = 1400)
+		default boolean customCredentialsPayload() {
+			return false;
 		}
 
 	}
@@ -332,25 +346,53 @@ public class PingOneCredentialsVerification implements Node {
 		String qrUrl = ""; // Value will not be used if delivery is not QRCODE
 
 		if(deliveryMethod.equals(Constants.VerificationDeliveryMethod.QRCODE)) {
+			NodeState nodeState = context.getStateFor(this);
 
+			JsonValue customCredentialsPayload = null;
+
+			if(config.customCredentialsPayload()) {
+				customCredentialsPayload = nodeState.get(REQUESTED_CREDENTIALS);
+			}
 
 			JsonValue response = client.createVerificationRequest(accessToken,
 			                                                      tntpPingOneConfig.environmentRegion().getDomainSuffix(),
 			                                                      tntpPingOneConfig.environmentId(),
 			                                                      message,
 			                                                      credentialType,
-			                                                      attributeKeys);
+			                                                      attributeKeys,
+			                                                      customCredentialsPayload);
 
 			// Retrieve response values
 			String sessionId = response.get(RESPONSE_ID).asString();
+			String applicationInstanceId = response.get(RESPONSE_APPLICATION_INSTANCE).get(RESPONSE_ID).asString();
+
 			qrUrl = response.get(RESPONSE_LINKS).get(RESPONSE_APPOPENURL).get(RESPONSE_HREF).asString();
 
-			// Store transaction ID in shared state
-			NodeState nodeState = context.getStateFor(this);
+			// Store application instance ID
+			nodeState.putShared(PINGONE_APPLICATION_INSTANCE_ID_KEY, applicationInstanceId);
+
+			// Store session ID in shared state
 			nodeState.putShared(PINGONE_VERIFICATION_SESSION_KEY, sessionId);
 			nodeState.putShared(PINGONE_VERIFICATION_TIMEOUT_KEY, TRANSACTION_POLL_INTERVAL);
-
 		} else if(deliveryMethod.equals(Constants.VerificationDeliveryMethod.PUSH)) {
+
+			NodeState nodeState = context.getStateFor(this);
+
+			// Check if PingOne User ID attribute is set in sharedState
+			String applicationInstanceId = nodeState.isDefined(PINGONE_APPLICATION_INSTANCE_ID_KEY)
+			                               ? nodeState.get(PINGONE_APPLICATION_INSTANCE_ID_KEY).asString()
+			                               : null;
+
+			if (StringUtils.isBlank(applicationInstanceId)) {
+				logger.error("Expected applicationInstanceId to be set in sharedState.");
+				return Action.goTo(FAILURE_OUTCOME_ID).build();
+			}
+
+			JsonValue customCredentialsPayload = null;
+
+			if(config.customCredentialsPayload()) {
+				customCredentialsPayload = nodeState.get(REQUESTED_CREDENTIALS);
+			}
 
 			JsonValue response = client.createVerificationRequestPush(accessToken,
 			                                                          tntpPingOneConfig.environmentRegion().getDomainSuffix(),
@@ -358,14 +400,17 @@ public class PingOneCredentialsVerification implements Node {
 			                                                          message,
 			                                                          credentialType,
 			                                                          attributeKeys,
-			                                                          config.applicationInstanceId(),
-			                                                          config.digitalWalletApplicationId());
+			                                                          config.applicationInstanceAttribute(),
+			                                                          config.digitalWalletApplicationId(),
+			                                                          customCredentialsPayload);
 
 			// Retrieve response values
 			String sessionId = response.get(RESPONSE_ID).asString();
 
-			// Store transaction ID in shared state
-			NodeState nodeState = context.getStateFor(this);
+			// Store application Instance ID in shared state
+			nodeState.putShared(PINGONE_APPLICATION_INSTANCE_ID_KEY, sessionId);
+
+			// Store session ID in shared state
 			nodeState.putShared(PINGONE_VERIFICATION_SESSION_KEY, sessionId);
 			nodeState.putShared(PINGONE_VERIFICATION_TIMEOUT_KEY, TRANSACTION_POLL_INTERVAL);
 		}

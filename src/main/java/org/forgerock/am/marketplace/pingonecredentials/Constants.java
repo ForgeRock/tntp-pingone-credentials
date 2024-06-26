@@ -12,6 +12,8 @@ public class Constants {
 	public static final String PINGONE_WALLET_DATA_KEY = "pingOneWalletData";
 	public static final String PINGONE_ACTIVE_WALLETS_DATA_KEY = "pingOneActiveWallets";
 
+	public static final String PINGONE_APPLICATION_INSTANCE_ID_KEY = "pingOneApplicationInstanceId";
+
 	public static final String PINGONE_VERIFICATION_DELIVERY_METHOD_KEY = "pingOneVerificationDeliveryMethod";
 	public static final String PINGONE_VERIFICATION_SESSION_KEY = "pingOneVerificationSessionId";
 	public static final String PINGONE_VERIFICATION_TIMEOUT_KEY = "pingOneVerificationTimeout";
@@ -22,16 +24,14 @@ public class Constants {
 
 	public static final String RESPONSE_ID = "id";
 	public static final String RESPONSE_STATUS = "status";
-	public static final String RESPONSE_PAIRING_SESSION = "pairingSession";
-	public static final String RESPONSE_QR_URL = "qrUrl";
 
 	public static final String RESPONSE_LINKS = "_links";
 	public static final String RESPONSE_APPOPEN = "appOpen";
 	public static final String RESPONSE_APPOPENURL = "appOpenUrl";
-	public static final String RESPONSE_QR = "qr";
 	public static final String RESPONSE_HREF = "href";
 	public static final String RESPONSE_EMBEDDED = "_embedded";
 	public static final String RESPONSE_DIGITALWALLETS = "digitalWallets";
+	public static final String RESPONSE_APPLICATION_INSTANCE = "applicationInstance";
 
 	public static final String ACTIVE = "ACTIVE";
 	public static final String PAIRING_REQUIRED = "PAIRING_REQUIRED";
@@ -42,6 +42,7 @@ public class Constants {
 	public final static String INITIAL = "INITIAL";
 
 	public final static String OBJECT_ATTRIBUTES = "objectAttributes";
+	public final static String REQUESTED_CREDENTIALS = "requestedCredentials";
 
 	// Outcomes
 	public static final String SUCCESS_OUTCOME_ID = "success";

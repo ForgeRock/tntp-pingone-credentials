@@ -1,6 +1,7 @@
-# PingOne Credentials Pair Wallet
+# PingOne Credentials Pair Wallet node
 
-The PingOne Credentials Pair Wallet node lets administrators integrate PingOne Credentials digital wallet pairing functionality in a Journey.
+The PingOne Credentials Pair Wallet node lets you pair PingOne digital wallet
+credentials with a Ping user ID.
 
 ## Compatibility
 
@@ -33,8 +34,7 @@ The PingOne Credentials Pair Wallet node lets administrators integrate PingOne C
 
 ## Inputs
 
-This node retrieves from the journey state:
-* **The PingOne User ID**
+This node retrieves `PingOne user ID` from the journey state.
 
 ## Configuration
 
@@ -51,20 +51,12 @@ This node retrieves from the journey state:
     </tr>
   <tr>
     <td>PingOne Wallet Application ID</td>
-    <td>Digital Wallet Application Id from PingOne Credentials</td>
+    <td>Digital Wallet Application ID from PingOne Credentials.</td>
   </tr>
      <tr>
-      <td>PingOne User ID Attribute</td>
-      <td>Local attribute name to retrieve the PingOne userID from.  Will look in journey state first, then the local datastore
-</td>
-    </tr>
-     <tr>
       <td>Digital Wallet Pairing URL delivery method</td>
-      <td>If checked user will be prompted for delivery method above<br>
-
-- QR Code
-- Email
-- SMS
+      <td>If selected, the user is prompted to select the method-- QR Code, Email, or SMS
+to deliver the digital wallet.<br>
 
 </td>
     </tr>
@@ -74,12 +66,12 @@ This node retrieves from the journey state:
     </tr>
      <tr>
       <td>Delivery method message</td>
-      <td>The message to display to the user allowing them to choose the delivery method to \
-  receive the pairing URL (QRCODE, SMS, EMAIL).</td>
+      <td>The message to display to the user, so they can select the method--QRCODE, SMS, or EMAIL, to receive the pairing URL</td>
     </tr>
      <tr>
       <td>QR code message</td>
-      <td>The message with instructions to scan the QR code to begin the digital wallet pairing process.</td>
+      <td>The message with instructions to scan the QR code to begin the digital wallet
+pairing process.</td>
     </tr>
     <tr>
       <td>Waiting Message</td>
@@ -87,9 +79,11 @@ This node retrieves from the journey state:
     </tr>
      <tr>
       <td>Store Wallet Response</td>
-      <td>Store the list of verified data submitted by the user in the shared state under a key\
-  named <code>pingOneWallet</code>.<br><br>\
-  <em>Note</em>: The key is empty if the node is unable to retrieve the wallet pairing data from PingOne.
+      <td>Store the list of user's digital wallet data in the shared state
+under a key named `pingOneWallet`.
+[NOTE]
+The key is empty if the node is unable to retrieve the wallet pairing data
+from PingOne service.
 </td>
     </tr>
     <tr>

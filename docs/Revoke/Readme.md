@@ -1,6 +1,7 @@
 # PingOne Credentials Revoke
 
-The PingOne Credentials Revoke node lets administrators revoke an existing PingOne Credential in a Journey.
+Using the PingOne Credentials Revoke node, you can revoke existing PingOne
+credentials in a journey.
 
 ## Compatibility
 
@@ -51,11 +52,6 @@ This node retrieves from the journey state:
       </td>
     </tr>
      <tr>
-      <td>PingOne User ID Attribute</td>
-      <td>Local attribute name to retrieve the PingOne userID from.  Will look in journey state first, then the local datastore
-</td>
-    </tr>
-     <tr>
       <td>Credential Id Attribute</td>
       <td>Local attribute name to retrieve the Credential Id Attribute from the journey state.
 </td>
@@ -74,7 +70,7 @@ None
 All configured checks passed.
 
 `Not Found`
-No credential was found to remove.
+No credential was found.
 
 `Failure`
 There was an error during the Revoke process

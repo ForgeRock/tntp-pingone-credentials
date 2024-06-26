@@ -1,6 +1,7 @@
-# PingOne Credentials Remove Wallet
+# PingOne Credentials Remove Wallet node
 
-The PingOne Credentials Remove Wallet node lets administrators create a Journey which removes a paired digital wallet from the PingOne user.
+The PingOne Credentials Remove Wallet node lets you create a journey to remove
+a paired digital wallet from the PingOne user.
 
 ## Compatibility
 
@@ -33,9 +34,8 @@ The PingOne Credentials Remove Wallet node lets administrators create a Journey 
 
 ## Inputs
 
-This node retrieves from the journey state:
-* **The PingOne User ID**
-* **The Digital Wallet ID**
+This node retrieves `PingOne user ID` and `Digital wallet ID` from the journey
+state.
 
 ## Configuration
 
@@ -50,14 +50,9 @@ This node retrieves from the journey state:
       <td>Marketplace Service to integrate with PingOne Services
       </td>
     </tr>
-  <tr>
-      <td>PingOne User ID Attribute</td>
-      <td>Local attribute name to retrieve the PingOne userID from.  Will look in journey state first, then the local datastore
-</td>
-  </tr>
      <tr>
     <td>Digital Wallet ID Attribute</td>
-    <td>Local attribute name to retrieve the Digital Wallet ID from the journey state.</td>
+    <td>Local attribute name to retrieve the digital wallet ID from the journey state.</td>
     </tr>
 
   </tbody>
@@ -76,7 +71,7 @@ All configured checks passed.
 No digital wallet was found to remove.
 
 `Failure`
-There was an error during the Wallet Removal process
+There was an error during the wallet removal process.
 
 ## Troubleshooting
 

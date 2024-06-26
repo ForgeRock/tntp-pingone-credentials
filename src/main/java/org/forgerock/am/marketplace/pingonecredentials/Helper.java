@@ -1,6 +1,5 @@
 package org.forgerock.am.marketplace.pingonecredentials;
 
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_STATUS;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.REVOKED;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.REVOKE_CONTENT_TYPE;
@@ -12,8 +11,6 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Optional;
-
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -33,6 +30,7 @@ import org.forgerock.oauth2.core.AccessToken;
 import org.forgerock.openam.http.HttpConstants;
 import org.forgerock.services.context.RootContext;
 import org.forgerock.util.thread.listener.ShutdownManager;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -268,8 +266,8 @@ public class Helper {
 	}
 
 	protected JsonValue createVerificationRequest(AccessToken accessToken, String domainSuffix, String environmentId,
-	                                              String message, String credentialType,
-	                                              List<String> attributeKeys) throws Exception {
+	                                              String message, String credentialType, List<String> attributeKeys,
+	                                              JsonValue customCredentialsPayload) throws Exception {
 		Request request;
 
 		try {
@@ -291,10 +289,14 @@ public class Helper {
 			credential.put("type", credentialType);
 			credential.put("keys", attributeKeys);
 
-			JsonValue requestedCredentials = new JsonValue(new ArrayList<JsonValue>(1));
-			requestedCredentials.add(credential);
+			if(customCredentialsPayload != null && customCredentialsPayload.isNotNull()) {
+				body.put("requestedCredentials", customCredentialsPayload);
+			} else {
+				JsonValue requestedCredentials = new JsonValue(new ArrayList<JsonValue>(1));
+				requestedCredentials.add(credential);
 
-			body.put("requestedCredentials", requestedCredentials);
+				body.put("requestedCredentials", requestedCredentials);
+			}
 
 			request = new Request();
 			request.setUri(uri).setMethod(HttpConstants.Methods.POST);
@@ -319,7 +321,8 @@ public class Helper {
 	protected JsonValue createVerificationRequestPush(AccessToken accessToken, String domainSuffix, String environmentId,
 	                                                  String message, String credentialType,
 	                                                  List<String> attributeKeys, String applicationInstanceId,
-	                                                  String digitalWalletApplicationId) throws Exception {
+	                                                  String digitalWalletApplicationId,
+	                                                  JsonValue customCredentialsPayload) throws Exception {
 		Request request;
 
 		try {
@@ -354,10 +357,14 @@ public class Helper {
 			credential.put("type", credentialType);
 			credential.put("keys", attributeKeys);
 
-			JsonValue requestedCredentials = new JsonValue(new ArrayList<JsonValue>(1));
-			requestedCredentials.add(credential);
+			if(customCredentialsPayload.isNotNull()) {
+				body.put("requestedCredentials", customCredentialsPayload);
+			} else {
+				JsonValue requestedCredentials = new JsonValue(new ArrayList<JsonValue>(1));
+				requestedCredentials.add(credential);
 
-			body.put("requestedCredentials", requestedCredentials);
+				body.put("requestedCredentials", requestedCredentials);
+			}
 
 			logger.error("Body: " + body.toString());
 
