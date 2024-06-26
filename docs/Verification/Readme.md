@@ -33,7 +33,8 @@ The PingOne Credentials Verification node lets administrators configure a journe
 
 ## Inputs
 
-None
+If the `Push` delivery method is selected, this node retrieves `pingOneApplicationInstanceId` from journey state.
+If `Custom Requested Credentials` is selected, this node retrieves `requestedCredentials` from journey state. 
 
 ## Configuration
 
@@ -59,13 +60,6 @@ None
 </td>
     </tr>
      <tr>
-      <td>Application Instance ID</td>
-      <td>Identifier of the application running the Wallet SDK on the user's device and registered \
-  with the service. When set and protocol is NATIVE, the service sends a push notification to the application instance using \
-  the settings of the digital wallet application.
-</td>
-    </tr>
-     <tr>
       <td>Digital Wallet Application ID</td>
       <td>Digital Wallet Application ID from PingOne Credentials required for Push delivery method.
 </td>
@@ -85,7 +79,7 @@ None
     </tr>
      <tr>
       <td>Delivery method message</td>
-      <td>The message to display to the user allowing them to choose the delivery method to \
+      <td>The message to display to the user allowing them to choose the delivery method to 
   receive the pairing URL (QRCODE, SMS, EMAIL).</td>
     </tr>
      <tr>
@@ -102,26 +96,31 @@ None
     </tr>
      <tr>
       <td>Store Credential Verification Response</td>
-      <td>Store the list of verified data submitted by the user in the shared state under a key\
-  named <code>pingOneCredentialVerification</code>.<br><br>\
+      <td>Store the list of verified data submitted by the user in the shared state under a key
+  named <code>pingOneCredentialVerification</code>.<br><br>
   <em>Note</em>: The key is empty if the node is unable to retrieve the wallet pairing data from PingOne.
 </td>
     </tr>
     <tr>
       <td>Verification Timeout</td>
-      <td>The period of time (in seconds) to wait for a response to the Verification request. If no \
+      <td>The period of time (in seconds) to wait for a response to the Verification request. If no
   response is received during this time the node times out and the verification process fails.
       </td>
     </tr>
     <tr>
+<td>Custom Requested Credentials</td>
+<td>If selected a custom requested credentials payload should be retrieved from the 
+  requestedCredentials attribute in shared state.
+</td>
+</tr>
   </tbody>
 </table>
 
 ## Outputs
 
-<ul>
-<li>pingOneCredentialVerification - The new PingOne Credential Verification request status and full response.</li>
-</ul>
+`pingOneCredentialVerification`: The new PingOne Credential Verification
+request status and full response.
+`pingOneApplicationInstanceId`: The identifier of the application running the Wallet SDK on the user's device and registered with the service.
 
 ## Outcomes
 
@@ -129,7 +128,7 @@ None
 All configured checks passed.
 
 `Failure`
-There was an error during the Pairing process
+There was an error during the Verification process
 
 `Time Out`
 The pairing process reached the configured timeout value.

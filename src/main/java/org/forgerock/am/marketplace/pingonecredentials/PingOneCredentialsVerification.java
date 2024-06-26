@@ -325,6 +325,11 @@ public class PingOneCredentialsVerification implements Node {
 				return waitTransactionCompletion(nodeState, callbacks, config.timeout()).build();
 			case VERIFICATION_SUCCESSFUL:
 				logger.error("Status is VERIFICATION_SUCCESSFUL, returning success");
+				String applicationInstanceId = response.get(RESPONSE_APPLICATION_INSTANCE).get(RESPONSE_ID).asString();
+
+				// Store application instance ID
+				nodeState.putShared(PINGONE_APPLICATION_INSTANCE_ID_KEY, applicationInstanceId);
+
 				if (config.storeVerificationResponse()) {
 					nodeState.putShared(PINGONE_CREDENTIAL_VERIFICATION_KEY, response);
 				}
@@ -364,12 +369,9 @@ public class PingOneCredentialsVerification implements Node {
 
 			// Retrieve response values
 			String sessionId = response.get(RESPONSE_ID).asString();
-			String applicationInstanceId = response.get(RESPONSE_APPLICATION_INSTANCE).get(RESPONSE_ID).asString();
+
 
 			qrUrl = response.get(RESPONSE_LINKS).get(RESPONSE_APPOPENURL).get(RESPONSE_HREF).asString();
-
-			// Store application instance ID
-			nodeState.putShared(PINGONE_APPLICATION_INSTANCE_ID_KEY, applicationInstanceId);
 
 			// Store session ID in shared state
 			nodeState.putShared(PINGONE_VERIFICATION_SESSION_KEY, sessionId);
@@ -406,9 +408,6 @@ public class PingOneCredentialsVerification implements Node {
 
 			// Retrieve response values
 			String sessionId = response.get(RESPONSE_ID).asString();
-
-			// Store application Instance ID in shared state
-			nodeState.putShared(PINGONE_APPLICATION_INSTANCE_ID_KEY, sessionId);
 
 			// Store session ID in shared state
 			nodeState.putShared(PINGONE_VERIFICATION_SESSION_KEY, sessionId);

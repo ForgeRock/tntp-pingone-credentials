@@ -34,7 +34,7 @@ journey.
 
 ## Inputs
 
-This node retrieves `PingOne User ID` and `Credential Type ID` from the journey state.
+This node retrieves `pingOneUserId` from the journey state.
 
 ## Configuration
 
