@@ -13,7 +13,6 @@ import static org.forgerock.am.marketplace.pingonecredentials.Constants.OBJECT_A
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_USER_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_ID;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_STATUS;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.SUCCESS_OUTCOME_ID;
 
 import com.google.inject.assistedinject.Assisted;
@@ -139,11 +138,7 @@ public class PingOneCredentialsCreate implements Node {
                                                                 config.credentialTypeId(),
                                                                 getAttributesArray(nodeState));
 
-            String result = response.get(RESPONSE_STATUS).asString();
-
             nodeState.putShared(PINGONE_CREDENTIAL_ID_KEY, response.get(RESPONSE_ID).asString());
-
-            logger.error(loggerPrefix + "Result: " + result);
 
             return Action.goTo(SUCCESS_OUTCOME_ID).build();
         }

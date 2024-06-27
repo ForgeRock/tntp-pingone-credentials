@@ -159,13 +159,9 @@ public class PingOneCredentialsUpdate implements Node {
                                                                config.credentialId(),
                                                                getAttributesArray(nodeState));
 
-            String result = response.get(RESPONSE_STATUS).asString();
-
             if (config.storeResponse()) {
                 nodeState.putShared(PINGONE_CREDENTIAL_UPDATE_KEY, response);
             }
-
-            logger.error(loggerPrefix + "Result: " + result);
 
             return Action.goTo(SUCCESS_OUTCOME_ID).build();
         }

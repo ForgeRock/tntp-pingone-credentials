@@ -251,7 +251,6 @@ public class PingOneCredentialsVerification implements Node {
 			// Check if choice was made
 			Optional<ConfirmationCallback> confirmationCallback = context.getCallback(ConfirmationCallback.class);
 			if (confirmationCallback.isPresent()) {
-				logger.error("Retrieve selected delivery method and start a new Wallet Pairing process.");
 				int choice = confirmationCallback.get().getSelectedIndex();
 				nodeState.putShared(PINGONE_VERIFICATION_DELIVERY_METHOD_KEY, choice);
 				return startVerificationTransaction(context, accessToken, Constants.VerificationDeliveryMethod.fromIndex(choice),
@@ -263,20 +262,16 @@ public class PingOneCredentialsVerification implements Node {
 			Optional<PollingWaitCallback> pollingWaitCallback = context.getCallback(PollingWaitCallback.class);
 			if (pollingWaitCallback.isPresent()) {
 				// Transaction already started
-				logger.error("Identity Verification process already started. Waiting for completion...");
 				if (!nodeState.isDefined(PINGONE_VERIFICATION_SESSION_KEY)) {
-					logger.error("Unable to find the PingOne Verify Transaction ID in sharedState.");
 					return buildAction(FAILURE_OUTCOME_ID, context);
 				}
 				return getActionFromVerificationStatus(context, accessToken);
 			} else {
 				// Start new pairing transaction
 				if (config.allowDeliveryMethodSelection()) {
-					logger.error("Present options to select the delivery method.");
 					List<Callback> callbacks = createChoiceCallbacks(context);
 					return send(callbacks).build();
 				} else {
-					logger.error("Start new Identity Verification process.");
 					return startVerificationTransaction(context, accessToken, config.deliveryMethod(),
 					                                    config.credentialType(), getPushMessage(context),
 					                                    config.attributeKeys());
@@ -313,18 +308,15 @@ public class PingOneCredentialsVerification implements Node {
 		                                                    tntpPingOneConfig.environmentId(),
 		                                                    sessionId);
 
-		logger.error("readVerificationSession: " + response.toString());
 		// Retrieve response values
 		String status = response.get(RESPONSE_STATUS).asString();
 		String qrUrl = response.get(RESPONSE_LINKS).get(RESPONSE_APPOPENURL).get(RESPONSE_HREF).asString();
 
 		switch (status) {
 			case INITIAL:
-				logger.error("Status is initial, waiting...");
 				List<Callback> callbacks = getCallbacksForDeliveryMethod(context, verificationDeliveryMethod, qrUrl);
 				return waitTransactionCompletion(nodeState, callbacks, config.timeout()).build();
 			case VERIFICATION_SUCCESSFUL:
-				logger.error("Status is VERIFICATION_SUCCESSFUL, returning success");
 				String applicationInstanceId = response.get(RESPONSE_APPLICATION_INSTANCE).get(RESPONSE_ID).asString();
 
 				// Store application instance ID
@@ -335,7 +327,6 @@ public class PingOneCredentialsVerification implements Node {
 				}
 				return buildAction(SUCCESS_OUTCOME_ID, context);
 			case EXPIRED:
-				logger.error("Status is expired, returning failure");
 				return buildAction(FAILURE_OUTCOME_ID, context);
 			default:
 				throw new IllegalStateException("Unexpected status returned from PingOne Credential Verification: "
@@ -470,7 +461,6 @@ public class PingOneCredentialsVerification implements Node {
 	}
 
 	private Action.ActionBuilder waitTransactionCompletion(NodeState nodeState, List<Callback> callbacks, int timeout) {
-		logger.error("Waiting pairing transaction to be completed.");
 		int timeOutInMs = timeout * 1000;
 		int timeElapsed = nodeState.get(PINGONE_VERIFICATION_TIMEOUT_KEY).asInteger();
 

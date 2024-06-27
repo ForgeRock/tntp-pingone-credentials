@@ -65,8 +65,6 @@ public class Helper {
 			                pingOneUID +
 			                "/digitalWallets";
 
-			logger.error(theURI);
-
 			URI uri = URI.create(theURI);
 
 			request = new Request();
@@ -99,8 +97,6 @@ public class Helper {
 			                "/users/" +
 			                pingOneUID +
 			                "/credentials";
-
-			logger.error("Attributes: " + attributes);
 
 			URI uri = URI.create(theURI);
 
@@ -146,8 +142,6 @@ public class Helper {
 			                pingOneUID +
 			                "/credentials/" +
 			                credentialId;
-
-			logger.error("Attributes: " + attributes);
 
 			URI uri = URI.create(theURI);
 
@@ -208,8 +202,6 @@ public class Helper {
 				notification.put("methods", notificationList);
 				body.put("notification", notification);
 			}
-
-			logger.error("body: "+ body);
 
 			request = new Request();
 			request.setUri(uri).setMethod(HttpConstants.Methods.POST);
@@ -334,9 +326,6 @@ public class Helper {
 
 			URI uri = URI.create(theURI);
 
-			logger.error("Application Instance ID: " + applicationInstanceId);
-			logger.error("Digital Wallet Application ID: " + digitalWalletApplicationId);
-
 			JsonValue body = new JsonValue(new LinkedHashMap<String, Object>(1));
 
 			body.put("message", message);
@@ -365,8 +354,6 @@ public class Helper {
 
 				body.put("requestedCredentials", requestedCredentials);
 			}
-
-			logger.error("Body: " + body.toString());
 
 			request = new Request();
 			request.setUri(uri).setMethod(HttpConstants.Methods.POST);

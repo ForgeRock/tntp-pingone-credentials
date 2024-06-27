@@ -141,12 +141,10 @@ public class PingOneCredentialsFindWallets implements Node {
                                                           pingOneUserId);
 
             JsonValue wallets = response.get(RESPONSE_EMBEDDED).get(RESPONSE_DIGITALWALLETS);
-            logger.error("All wallets: " + wallets);
 
             JsonValue activeWallets = json(array());
 
             for (JsonValue obj : wallets) {
-                logger.error(obj.toString());
 
                 String walletStatus = obj.get(RESPONSE_STATUS).asString();
 
@@ -155,7 +153,6 @@ public class PingOneCredentialsFindWallets implements Node {
                 }
             }
 
-            logger.error("active_wallets: " + activeWallets);
             if(activeWallets.size() == 0) {
                 return Action.goTo(NOT_FOUND_OUTCOME_ID).build();
             } else if(activeWallets.size() == 1) {

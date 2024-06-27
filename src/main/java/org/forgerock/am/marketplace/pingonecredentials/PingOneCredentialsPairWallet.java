@@ -248,7 +248,6 @@ public class PingOneCredentialsPairWallet implements Node {
             // Check if choice was made
             Optional<ConfirmationCallback> confirmationCallback = context.getCallback(ConfirmationCallback.class);
             if (confirmationCallback.isPresent()) {
-                logger.error("Retrieve selected delivery method and start a new Wallet Pairing process.");
                 int choice = confirmationCallback.get().getSelectedIndex();
                 nodeState.putShared(PINGONE_PAIRING_DELIVERY_METHOD_KEY, choice);
                 return startPairingTransaction(context, accessToken, PairingDeliveryMethod.fromIndex(choice),
@@ -258,10 +257,8 @@ public class PingOneCredentialsPairWallet implements Node {
             // Check if transaction was started
             Optional<PollingWaitCallback> pollingWaitCallback = context.getCallback(PollingWaitCallback.class);
             if (pollingWaitCallback.isPresent()) {
-                // Transaction already started
-                logger.error("Pairing process already started. Waiting for completion...");
+                // Transaction already started;
                 if (!nodeState.isDefined(PINGONE_PAIRING_WALLET_ID_KEY)) {
-                    logger.error("Unable to find the PingOne Credentials Wallet ID in sharedState.");
                     return buildAction(FAILURE_OUTCOME_ID, context);
                 }
                 return getActionFromPairingTransactionStatus(context, accessToken, pingOneUserId);
@@ -269,11 +266,9 @@ public class PingOneCredentialsPairWallet implements Node {
 
                 // Start new pairing transaction
                 if (config.allowDeliveryMethodSelection()) {
-                    logger.error("Present options to select the delivery method.");
                     List<Callback> callbacks = createChoiceCallbacks(context);
                     return send(callbacks).build();
                 } else {
-                    logger.error("Start new Identity Verification process.");
                     return startPairingTransaction(context, accessToken, config.deliveryMethod(),
                                                    pingOneUserId, config.digitalWalletApplicationId());
                 }
@@ -311,15 +306,11 @@ public class PingOneCredentialsPairWallet implements Node {
                                                                tntpPingOneConfig.environmentId(),
                                                                pingOneUserId,
                                                                walletId);
-        logger.error("readWallet: " + response.toString());
         // Retrieve response values
         String status = response.get(RESPONSE_STATUS).asString();
-        //String qrUrl = response.get(RESPONSE_PAIRING_SESSION).get(RESPONSE_QR_URL).asString();
 
         switch (status) {
             case PAIRING_REQUIRED:
-                logger.error("Status is pairing required, waiting...");
-
                 if(nodeState.isDefined(PINGONE_APPOPEN_URL_KEY)) {
                     String qrUrl = nodeState.get(PINGONE_APPOPEN_URL_KEY).asString();
 
@@ -329,7 +320,6 @@ public class PingOneCredentialsPairWallet implements Node {
                     throw new IllegalStateException("Missing AppOpen URL in nodeState.");
                 }
             case ACTIVE:
-                logger.error("Status is active, returning success");
                 nodeState.putShared(PINGONE_WALLET_ID_KEY, response.get(RESPONSE_ID));
 
                 if (config.storeWalletResponse()) {
@@ -337,7 +327,6 @@ public class PingOneCredentialsPairWallet implements Node {
                 }
                 return buildAction(SUCCESS_OUTCOME_ID, context);
             case EXPIRED:
-                logger.error("Status is expired, returning failure");
                 return buildAction(FAILURE_OUTCOME_ID, context);
             default:
                 throw new IllegalStateException("Unexpected status returned from PingOne Pairing Transaction: "
@@ -369,13 +358,12 @@ public class PingOneCredentialsPairWallet implements Node {
                                                                digitalWalletApplicationId,
                                                                notificationList);
 
-        logger.error("Response: " + response);
         // Retrieve response values
         String digitalWalletId = response.get(RESPONSE_ID).asString();
-        //String qrUrl = response.get(RESPONSE_PAIRING_SESSION).get(RESPONSE_QR_URL).asString();
+
+        // Use the App Open URL for the QR Code URL
         String appOpenUrl = response.get(RESPONSE_LINKS).get(RESPONSE_APPOPEN).get(RESPONSE_HREF).asString();
 
-        logger.error("digitalWalletId: " + digitalWalletId);
         // Store transaction ID in shared state
         NodeState nodeState = context.getStateFor(this);
         nodeState.putShared(PINGONE_PAIRING_WALLET_ID_KEY, digitalWalletId);
@@ -384,13 +372,8 @@ public class PingOneCredentialsPairWallet implements Node {
         // Store the app open URL to be used during the polling
         nodeState.putTransient(PINGONE_APPOPEN_URL_KEY, appOpenUrl);
 
-        logger.error(nodeState.get(PINGONE_PAIRING_WALLET_ID_KEY).asString());
-
-        // Use the App Open URL for the QR Code URL
-        String qrUrl = appOpenUrl;
-
         // Create callbacks and send
-        List<Callback> callbacks = getCallbacksForDeliveryMethod(context, pairingDeliveryMethod, qrUrl);
+        List<Callback> callbacks = getCallbacksForDeliveryMethod(context, pairingDeliveryMethod, appOpenUrl);
         return send(callbacks).build();
     }
 
@@ -438,7 +421,6 @@ public class PingOneCredentialsPairWallet implements Node {
     }
 
     private Action.ActionBuilder waitTransactionCompletion(NodeState nodeState, List<Callback> callbacks, int timeout) {
-        logger.error("Waiting pairing transaction to be completed.");
         int timeOutInMs = timeout * 1000;
         int timeElapsed = nodeState.get(PINGONE_PAIRING_TIMEOUT_KEY).asInteger();
 
@@ -476,7 +458,6 @@ public class PingOneCredentialsPairWallet implements Node {
     }
 
     private Action.ActionBuilder cleanupSharedState(TreeContext context, Action.ActionBuilder builder) {
-        logger.error("Cleaning up shared state...");
         NodeState nodeState = context.getStateFor(this);
         nodeState.remove(PINGONE_PAIRING_WALLET_ID_KEY);
         nodeState.remove(PINGONE_PAIRING_DELIVERY_METHOD_KEY);

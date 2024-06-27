@@ -125,9 +125,6 @@ public class PingOneCredentialsRemoveWallet implements Node {
                 return Action.goTo(FAILURE_OUTCOME_ID).build();
             }
 
-            logger.error(config.digitalWalletIdAttribute());
-            logger.error("nodeState: " + nodeState.get("pingOnePairedWalletId").asString());
-
             // Check if Digital Wallet ID attribute is set in sharedState
             String digitalWalletId = nodeState.isDefined(config.digitalWalletIdAttribute())
                                   ? nodeState.get(config.digitalWalletIdAttribute()).asString()
