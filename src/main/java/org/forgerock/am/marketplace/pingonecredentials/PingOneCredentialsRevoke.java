@@ -73,6 +73,11 @@ public class PingOneCredentialsRevoke implements Node {
             return TNTPPingOneConfigChoiceValues.createTNTPPingOneConfigName("Global Default");
         }
 
+        @Attribute(order = 200)
+        default String pingOneUserIdAttribute() {
+            return PINGONE_USER_ID_KEY;
+        }
+
         @Attribute(order = 300)
         default String credentialId() {
             return PINGONE_CREDENTIAL_ID_KEY;
@@ -103,8 +108,8 @@ public class PingOneCredentialsRevoke implements Node {
             NodeState nodeState = context.getStateFor(this);
 
             // Check if PingOne User ID attribute is set in sharedState
-            String pingOneUserId = nodeState.isDefined(PINGONE_USER_ID_KEY)
-                                   ? nodeState.get(PINGONE_USER_ID_KEY).asString()
+            String pingOneUserId = nodeState.isDefined(config.pingOneUserIdAttribute())
+                                   ? nodeState.get(config.pingOneUserIdAttribute()).asString()
                                    : null;
 
             // Check if PingOne User ID attribute is in objectAttributes
@@ -112,8 +117,8 @@ public class PingOneCredentialsRevoke implements Node {
                 if(nodeState.isDefined(OBJECT_ATTRIBUTES)) {
                     JsonValue objectAttributes = nodeState.get(OBJECT_ATTRIBUTES);
 
-                    pingOneUserId = objectAttributes.isDefined(PINGONE_USER_ID_KEY)
-                                    ? objectAttributes.get(PINGONE_USER_ID_KEY).asString()
+                    pingOneUserId = objectAttributes.isDefined(config.pingOneUserIdAttribute())
+                                    ? objectAttributes.get(config.pingOneUserIdAttribute()).asString()
                                     : null;
                 }
             }
