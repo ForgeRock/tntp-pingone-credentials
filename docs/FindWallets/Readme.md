@@ -75,3 +75,6 @@ There was an error during the process of finding the wallet.
 If this node logs an error, review the log messages to find the reason for the error and address the issue
 appropriately.
 
+If the API call to PingOne Credentials fails, the following exception will be logged:
+
+* Error: PingOne Credentials Find a Wallet - <Status Code> - <Response Body> 

@@ -79,12 +79,12 @@ If `Custom Requested Credentials` is selected, this node retrieves `requestedCre
     </tr>
      <tr>
       <td>Delivery method message</td>
-      <td>The message to display to the user allowing them to choose the delivery method to 
-  receive the pairing URL (QRCODE, SMS, EMAIL).</td>
+      <td>The message to display to the user allowing them to choose the delivery method to \
+  receive the credential verification URL (QRCODE, PUSH).</td>
     </tr>
      <tr>
       <td>QR code message</td>
-      <td>The message with instructions to scan the QR code to begin the digital wallet pairing process.</td>
+      <td>The message with instructions to scan the QR code to begin the credential verification process.</td>
     </tr>
     <tr>
       <td>Waiting Message</td>
@@ -138,3 +138,8 @@ The pairing process reached the configured timeout value.
 If this node logs an error, review the log messages to find the reason for the error and address the issue
 appropriately.
 
+If any of the API calls to PingOne Credentials fail, the following exceptions will be logged:
+
+* Error: PingOne Credentials Create Verification session - <Status Code> - <Response Body> 
+* Error: PingOne Credentials Create Push Verification session - <Status Code> - <Response Body>
+* Error: PingOne Credentials Read a Verification Session - <Status Code> - <Response Body> 

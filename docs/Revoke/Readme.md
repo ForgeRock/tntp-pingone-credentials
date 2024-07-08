@@ -80,3 +80,7 @@ There was an error during the Revoke process
 If this node logs an error, review the log messages to find the reason for the error and address the issue
 appropriately.
 
+If the API call to PingOne Credentials fails, the following exception will be logged:
+
+* Error: PingOne Credentials Revoke a User's Credential - <Status Code> - <Response Body> 
+

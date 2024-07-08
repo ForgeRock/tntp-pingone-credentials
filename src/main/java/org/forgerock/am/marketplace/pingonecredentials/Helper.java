@@ -215,7 +215,7 @@ public class Helper {
 			if (response.getStatus().isSuccessful()) {
 				return json(response.getEntity().getJson());
 			} else {
-				throw new Exception("PingOne Credentials Create a User Credential" +
+				throw new Exception("PingOne Credentials Create a Digital Wallet" +
 				                    response.getStatus() + "-" + response.getEntity().getString());
 			}
 		} catch (Exception e) {
@@ -434,7 +434,7 @@ public class Helper {
 			else if(response.getStatus().equals(Status.NOT_FOUND)) {
 				return false; // Wallet didn't exist
 			} else {
-				throw new Exception("PingOne Credentials Create a User Credential" + response.getStatus() + "-" + response.getEntity().getString());
+				throw new Exception("PingOne Credentials Delete a Digital Wallet" + response.getStatus() + "-" + response.getEntity().getString());
 			}
 		} catch (Exception e) {
 			throw new Exception("Failed PingOne Credentials", e);
