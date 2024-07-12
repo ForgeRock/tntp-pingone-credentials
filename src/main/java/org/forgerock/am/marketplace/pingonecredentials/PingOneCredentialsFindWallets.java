@@ -22,6 +22,7 @@ import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_STATUS;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.SUCCESS_OUTCOME_ID;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.SUCCESS_MULTI_OUTCOME_ID;
 import static org.forgerock.json.JsonValue.array;
 import static org.forgerock.json.JsonValue.json;
 
@@ -170,11 +171,14 @@ public class PingOneCredentialsFindWallets implements Node {
 
                 nodeState.putShared(PINGONE_WALLET_ID_KEY, walletId);
                 nodeState.putShared(PINGONE_APPLICATION_INSTANCE_ID_KEY, applicationInstanceId);
+
+                nodeState.putShared(PINGONE_ACTIVE_WALLETS_DATA_KEY, activeWallets);
+                return Action.goTo(SUCCESS_OUTCOME_ID).build();
+            } else {
+
+                nodeState.putShared(PINGONE_ACTIVE_WALLETS_DATA_KEY, activeWallets);
+                return Action.goTo(SUCCESS_MULTI_OUTCOME_ID).build();
             }
-
-            nodeState.putShared(PINGONE_ACTIVE_WALLETS_DATA_KEY, activeWallets);
-
-            return Action.goTo(SUCCESS_OUTCOME_ID).build();
         }
         catch (Exception ex) {
             String stackTrace = org.apache.commons.lang.exception.ExceptionUtils.getStackTrace(ex);
@@ -200,6 +204,7 @@ public class PingOneCredentialsFindWallets implements Node {
                                                                        OutcomeProvider.class.getClassLoader());
             List<Outcome> results = new ArrayList<>();
             results.add(new Outcome(SUCCESS_OUTCOME_ID, bundle.getString("successOutcome")));
+            results.add(new Outcome(SUCCESS_MULTI_OUTCOME_ID, bundle.getString("successMultiOutcome")));
             results.add(new Outcome(NOT_FOUND_OUTCOME_ID, bundle.getString("notFoundOutcome")));
             results.add(new Outcome(FAILURE_OUTCOME_ID, bundle.getString("failureOutcome")));
             return Collections.unmodifiableList(results);

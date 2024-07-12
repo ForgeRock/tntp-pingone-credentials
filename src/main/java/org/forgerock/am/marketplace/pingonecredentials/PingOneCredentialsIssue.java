@@ -44,19 +44,19 @@ import java.util.ResourceBundle;
 
 
 @Node.Metadata(
-    outcomeProvider = PingOneCredentialsCreate.IssueOutcomeProvider.class,
-    configClass = PingOneCredentialsCreate.Config.class,
+    outcomeProvider = PingOneCredentialsIssue.IssueOutcomeProvider.class,
+    configClass = PingOneCredentialsIssue.Config.class,
     tags = {"marketplace", "trustnetwork"})
-public class PingOneCredentialsCreate implements Node {
+public class PingOneCredentialsIssue implements Node {
 
     private final Config config;
     private final Realm realm;
     private final TNTPPingOneConfig tntpPingOneConfig;
 
-    private final Logger logger = LoggerFactory.getLogger(PingOneCredentialsCreate.class);
-    private final String loggerPrefix = "[PingOne Credentials Create Node]" + PingOneCredentialsPlugin.logAppender;
+    private final Logger logger = LoggerFactory.getLogger(PingOneCredentialsIssue.class);
+    private final String loggerPrefix = "[PingOne Credentials Issue Node]" + PingOneCredentialsPlugin.logAppender;
 
-    public static final String BUNDLE = PingOneCredentialsCreate.class.getName();
+    public static final String BUNDLE = PingOneCredentialsIssue.class.getName();
     private final Helper client;
 
 
@@ -97,7 +97,7 @@ public class PingOneCredentialsCreate implements Node {
      * @param realm  The realm the node is in.
      */
     @Inject
-    public PingOneCredentialsCreate(@Assisted Config config, @Assisted Realm realm, Helper client) {
+    public PingOneCredentialsIssue(@Assisted Config config, @Assisted Realm realm, Helper client) {
         this.config = config;
         this.realm = realm;
         this.tntpPingOneConfig = TNTPPingOneConfigChoiceValues.getTNTPPingOneConfig(config.tntpPingOneConfigName());
@@ -136,12 +136,12 @@ public class PingOneCredentialsCreate implements Node {
             TNTPPingOneUtility pingOneUtility = TNTPPingOneUtility.getInstance();
             AccessToken accessToken = pingOneUtility.getAccessToken(realm, tntpPingOneConfig);
 
-            JsonValue response = client.credentialCreateRequest(accessToken,
-                                                                tntpPingOneConfig.environmentRegion().getDomainSuffix(),
-                                                                tntpPingOneConfig.environmentId(),
-                                                                pingOneUserId,
-                                                                config.credentialTypeId(),
-                                                                getAttributesArray(nodeState));
+            JsonValue response = client.credentialIssueRequest(accessToken,
+                                                               tntpPingOneConfig.environmentRegion().getDomainSuffix(),
+                                                               tntpPingOneConfig.environmentId(),
+                                                               pingOneUserId,
+                                                               config.credentialTypeId(),
+                                                               getAttributesArray(nodeState));
 
             nodeState.putShared(PINGONE_CREDENTIAL_ID_KEY, response.get(RESPONSE_ID).asString());
 
@@ -172,7 +172,7 @@ public class PingOneCredentialsCreate implements Node {
     public static class IssueOutcomeProvider implements OutcomeProvider {
         @Override
         public List<Outcome> getOutcomes(PreferredLocales locales, JsonValue nodeAttributes) {
-            ResourceBundle bundle = locales.getBundleInPreferredLocale(PingOneCredentialsCreate.BUNDLE,
+            ResourceBundle bundle = locales.getBundleInPreferredLocale(PingOneCredentialsIssue.BUNDLE,
                                                                        OutcomeProvider.class.getClassLoader());
             List<Outcome> results = new ArrayList<>();
             results.add(new Outcome(SUCCESS_OUTCOME_ID, bundle.getString("successOutcome")));

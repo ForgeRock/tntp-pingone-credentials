@@ -84,9 +84,9 @@ public class Helper {
 		}
 	}
 
-	protected JsonValue credentialCreateRequest(AccessToken accessToken, String domainSuffix,
-	                                            String environmentId, String pingOneUID, String credentialTypeId,
-	                                            JsonValue attributes) throws Exception {
+	protected JsonValue credentialIssueRequest(AccessToken accessToken, String domainSuffix,
+	                                           String environmentId, String pingOneUID, String credentialTypeId,
+	                                           JsonValue attributes) throws Exception {
 		Request request;
 
 		try {
@@ -120,7 +120,7 @@ public class Helper {
 			if (response.getStatus().isSuccessful()) {
 				return json(response.getEntity().getJson());
 			} else {
-				throw new Exception("PingOne Credentials Create a User Credential" + response.getStatus() +
+				throw new Exception("PingOne Credentials Issue a User Credential" + response.getStatus() +
 				                    "-" + response.getEntity().getString());
 			}
 		} catch (Exception e) {

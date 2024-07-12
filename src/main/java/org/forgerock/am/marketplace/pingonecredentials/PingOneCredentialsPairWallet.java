@@ -127,21 +127,24 @@ public class PingOneCredentialsPairWallet implements Node {
             return "";
         }
 
-        /**
-         * The Pairing URL delivery method.
-         *
-         * @return The type of delivery method.
-         */
         @Attribute(order = 400)
-        default PairingDeliveryMethod deliveryMethod() {
-            return PairingDeliveryMethod.QRCODE;
+        default boolean qrCodeDelivery() { return true; }
+
+        @Attribute(order = 500)
+        default boolean emailDelivery() {
+            return false;
+        }
+
+        @Attribute(order = 600)
+        default boolean smsDelivery() {
+            return false;
         }
 
         /**
          * Allow user to choose the URL delivery method.
          * @return true if user will be prompted for delivery method, false otherwise.
          */
-        @Attribute(order = 500)
+        @Attribute(order = 700)
         default boolean allowDeliveryMethodSelection() {
             return false;
         }
@@ -151,7 +154,7 @@ public class PingOneCredentialsPairWallet implements Node {
          * Falls back to default.deliverMethodMessage.
          * @return The message to display while choosing the delivery method.
          */
-        @Attribute(order = 600)
+        @Attribute(order = 800)
         default Map<Locale, String> deliveryMethodMessage() {
             return Collections.emptyMap();
         }
@@ -161,7 +164,7 @@ public class PingOneCredentialsPairWallet implements Node {
          * default.scanQRCodeMessage.
          * @return The mapping of locales to scan QR code messages.
          */
-        @Attribute(order = 700)
+        @Attribute(order = 900)
         default Map<Locale, String> scanQRCodeMessage() {
             return Collections.emptyMap();
         }
@@ -170,7 +173,7 @@ public class PingOneCredentialsPairWallet implements Node {
          * The timeout in seconds for the verification process.
          * @return The timeout in seconds.
          */
-        @Attribute(order = 800)
+        @Attribute(order = 1000)
         default int timeout() {
             return DEFAULT_TIMEOUT;
         }
@@ -179,7 +182,7 @@ public class PingOneCredentialsPairWallet implements Node {
          * The message to display to the user while waiting, keyed on the locale. Falls back to default.waitingMessage.
          * @return The message to display on the waiting indicator.
          */
-        @Attribute(order = 900)
+        @Attribute(order = 1100)
         default Map<Locale, String> waitingMessage() {
             return Collections.emptyMap();
         }
@@ -188,7 +191,7 @@ public class PingOneCredentialsPairWallet implements Node {
          * Store the create wallet response in the shared state.
          * @return true if the create wallet response should be stored, false otherwise.
          */
-        @Attribute(order = 1100)
+        @Attribute(order = 1200)
         default boolean storeWalletResponse() {
             return false;
         }
@@ -255,7 +258,20 @@ public class PingOneCredentialsPairWallet implements Node {
             if (confirmationCallback.isPresent()) {
                 int choice = confirmationCallback.get().getSelectedIndex();
                 nodeState.putShared(PINGONE_PAIRING_DELIVERY_METHOD_KEY, choice);
-                return startPairingTransaction(context, accessToken, PairingDeliveryMethod.fromIndex(choice),
+
+                PairingDeliveryMethod deliveryMethod = PairingDeliveryMethod.fromIndex(choice);
+
+                boolean qrCodeDelivery = false;
+                boolean emailDelivery = false;
+                boolean smsDelivery = false;
+
+                switch(deliveryMethod) {
+                    case QRCODE -> qrCodeDelivery = true;
+                    case EMAIL -> emailDelivery = true;
+                    case SMS -> smsDelivery = true;
+                }
+
+                return startPairingTransaction(context, accessToken, qrCodeDelivery, emailDelivery, smsDelivery,
                                                pingOneUserId, config.digitalWalletApplicationId());
             }
 
@@ -274,8 +290,9 @@ public class PingOneCredentialsPairWallet implements Node {
                     List<Callback> callbacks = createChoiceCallbacks(context);
                     return send(callbacks).build();
                 } else {
-                    return startPairingTransaction(context, accessToken, config.deliveryMethod(),
-                                                   pingOneUserId, config.digitalWalletApplicationId());
+                    return startPairingTransaction(context, accessToken, config.qrCodeDelivery(), config.emailDelivery(),
+                                                   config.smsDelivery(), pingOneUserId,
+                                                   config.digitalWalletApplicationId());
                 }
             }
         }
@@ -296,13 +313,19 @@ public class PingOneCredentialsPairWallet implements Node {
         // Retrieve transaction ID from shared state
         String walletId = Objects.requireNonNull(nodeState.get(PINGONE_PAIRING_WALLET_ID_KEY)).asString();
 
-        // Determine delivery method
-        Constants.PairingDeliveryMethod pairingDeliveryMethod;
+        // Default to qr code delivery is disabled
+        boolean qrCodeDelivery = false;
+
         if (config.allowDeliveryMethodSelection()) {
             int index = Objects.requireNonNull(nodeState.get(PINGONE_PAIRING_DELIVERY_METHOD_KEY)).asInteger();
-            pairingDeliveryMethod = PairingDeliveryMethod.fromIndex(index);
+            if(PairingDeliveryMethod.fromIndex(index).equals(PairingDeliveryMethod.QRCODE)) {
+                qrCodeDelivery = true;
+            }
         } else {
-            pairingDeliveryMethod = config.deliveryMethod();
+
+            if(config.qrCodeDelivery()) {
+                qrCodeDelivery = true;
+            }
         }
 
         // Check transaction status and take appropriate action
@@ -319,7 +342,7 @@ public class PingOneCredentialsPairWallet implements Node {
                 if(nodeState.isDefined(PINGONE_APPOPEN_URL_KEY)) {
                     String qrUrl = nodeState.get(PINGONE_APPOPEN_URL_KEY).asString();
 
-                    List<Callback> callbacks = getCallbacksForDeliveryMethod(context, pairingDeliveryMethod, qrUrl);
+                    List<Callback> callbacks = getCallbacksForDeliveryMethod(context, qrCodeDelivery, qrUrl);
                     return waitTransactionCompletion(nodeState, callbacks, config.timeout()).build();
                 } else {
                     throw new IllegalStateException("Missing AppOpen URL in nodeState.");
@@ -339,20 +362,18 @@ public class PingOneCredentialsPairWallet implements Node {
         }
     }
 
-    private Action startPairingTransaction(TreeContext context, AccessToken accessToken, Constants.PairingDeliveryMethod pairingDeliveryMethod,
-                                           String pingOneUserId, String digitalWalletApplicationId)
+    private Action startPairingTransaction(TreeContext context, AccessToken accessToken, boolean qrCodeDelivery,
+                                           boolean emailDelivery, boolean smsDelivery, String pingOneUserId,
+                                           String digitalWalletApplicationId)
         throws Exception {
 
         List<String> notificationList = new ArrayList<String>();
 
-        if(pairingDeliveryMethod.equals(PairingDeliveryMethod.EMAIL) ||
-           pairingDeliveryMethod.equals(PairingDeliveryMethod.SMS)) {
-            notificationList.add(pairingDeliveryMethod.name());
-        } else if(pairingDeliveryMethod.equals(PairingDeliveryMethod.EMAIL_SMS)) {
+        if(emailDelivery) {
             notificationList.add(PairingDeliveryMethod.EMAIL.name());
-            notificationList.add(PairingDeliveryMethod.SMS.name());
-        } else if(pairingDeliveryMethod.equals(PairingDeliveryMethod.QR_CODE_EMAIL_SMS)){
-            notificationList.add(PairingDeliveryMethod.EMAIL.name());
+        }
+
+        if(smsDelivery) {
             notificationList.add(PairingDeliveryMethod.SMS.name());
         }
 
@@ -378,11 +399,11 @@ public class PingOneCredentialsPairWallet implements Node {
         nodeState.putTransient(PINGONE_APPOPEN_URL_KEY, appOpenUrl);
 
         // Create callbacks and send
-        List<Callback> callbacks = getCallbacksForDeliveryMethod(context, pairingDeliveryMethod, appOpenUrl);
+        List<Callback> callbacks = getCallbacksForDeliveryMethod(context, qrCodeDelivery, appOpenUrl);
         return send(callbacks).build();
     }
 
-    private List<Callback> getCallbacksForDeliveryMethod(TreeContext context, PairingDeliveryMethod pairingDeliveryMethod,
+    private List<Callback> getCallbacksForDeliveryMethod(TreeContext context, boolean qrCodeDelivery,
                                                          String url) {
         String waitingMessage = getWaitingMessage(context);
 
@@ -391,8 +412,7 @@ public class PingOneCredentialsPairWallet implements Node {
                                                       .withMessage(waitingMessage)
                                                       .build();
 
-        if (pairingDeliveryMethod.equals(PairingDeliveryMethod.QRCODE) ||
-            pairingDeliveryMethod.equals(PairingDeliveryMethod.QR_CODE_EMAIL_SMS)) {
+        if (qrCodeDelivery) {
             Callback scanTextOutputCallback = createLocalizedTextCallback(context, this.getClass(),
                                                                           config.scanQRCodeMessage(), SCAN_QR_CODE_MSG_KEY);
 

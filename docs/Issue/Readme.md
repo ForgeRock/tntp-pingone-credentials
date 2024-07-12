@@ -1,6 +1,6 @@
-# PingOne Credentials Create node
+# PingOne Credentials Issue node
 
-The PingOne Credentials Create node lets you create a PingOne credential in a
+The PingOne Credentials Issue node lets you create a PingOne credential in a
 journey.
 
 ## Compatibility
@@ -75,7 +75,7 @@ corresponding journey state attribute.</td>
 All configured checks passed.
 
 `Failure`
-There was an error during the Create process
+There was an error during the Issue process
 
 ## Troubleshooting
 
@@ -84,4 +84,4 @@ appropriately.
 
 If the API call to PingOne Credentials fails, the following exception will be logged:
 
-* Error: PingOne Credentials Create a User Credential - <Status Code> - <Response Body> 
+* Error: PingOne Credentials Issue a User Credential - <Status Code> - <Response Body> 

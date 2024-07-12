@@ -46,6 +46,7 @@ public class Constants {
 
 	// Outcomes
 	public static final String SUCCESS_OUTCOME_ID = "success";
+	public static final String SUCCESS_MULTI_OUTCOME_ID = "successMulti";
 	public static final String FAILURE_OUTCOME_ID = "failure";
 	public static final String TIMEOUT_OUTCOME_ID = "timeout";
 	public static final String NOT_FOUND_OUTCOME_ID = "not_found";
@@ -66,17 +67,7 @@ public class Constants {
 		/**
 		 * SMS.
 		 */
-		SMS,
-		/**
-		 * E-mail and SMS
-		 */
-		EMAIL_SMS,
-		/**
-		 * E-mail and SMS
-		 */
-		QR_CODE_EMAIL_SMS;
-
-
+		SMS;
 		/**
 		 * Get the DeliveryMethod from the index.
 		 *
