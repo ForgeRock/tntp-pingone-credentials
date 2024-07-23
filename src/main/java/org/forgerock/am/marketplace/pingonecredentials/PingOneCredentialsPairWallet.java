@@ -59,11 +59,13 @@ import org.forgerock.openam.auth.node.api.InputState;
 import org.forgerock.openam.auth.node.api.Node;
 import org.forgerock.openam.auth.node.api.NodeState;
 import org.forgerock.openam.auth.node.api.OutcomeProvider;
+import org.forgerock.openam.auth.node.api.OutputState;
+import org.forgerock.openam.auth.node.api.StaticOutcomeProvider;
 import org.forgerock.openam.auth.node.api.TreeContext;
 import org.forgerock.openam.auth.nodes.helpers.LocalizationHelper;
-import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfig;
-import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfigChoiceValues;
-import org.forgerock.openam.auth.service.marketplace.TNTPPingOneUtility;
+import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
+import org.forgerock.openam.integration.pingone.PingOneWorkerService;
+import org.forgerock.openam.integration.pingone.annotations.PingOneWorker;
 import org.forgerock.openam.authentication.callbacks.PollingWaitCallback;
 import org.forgerock.openam.core.realms.Realm;
 import org.forgerock.util.i18n.PreferredLocales;
@@ -73,11 +75,10 @@ import org.forgerock.openam.utils.qr.GenerationUtils;
 
 import com.google.inject.assistedinject.Assisted;
 
-
 @Node.Metadata(
     outcomeProvider = PingOneCredentialsPairWallet.ProofingOutcomeProvider.class,
     configClass = PingOneCredentialsPairWallet.Config.class,
-    tags = {"marketplace", "trustnetwork"})
+    tags = {"marketplace", "trustnetwork", "pingone"})
 public class PingOneCredentialsPairWallet implements Node {
 
     /** How often to poll AM for a response in milliseconds. */
@@ -87,7 +88,7 @@ public class PingOneCredentialsPairWallet implements Node {
     public static final String HIDDEN_CALLBACK_ID = "pingOneCredentialPairingUri";
 
     private final Logger logger = LoggerFactory.getLogger(PingOneCredentialsPairWallet.class);
-    private final String loggerPrefix = "[PingOne Credentials Pair Wallet Node]" + PingOneCredentialsPlugin.logAppender;
+    private static final String loggerPrefix = "[PingOne Credentials Pair Wallet Node]" + PingOneCredentialsPlugin.LOG_APPENDER;
 
     public static final String BUNDLE = PingOneCredentialsPairWallet.class.getName();
 
@@ -100,9 +101,9 @@ public class PingOneCredentialsPairWallet implements Node {
 
     private final Config config;
     private final Realm realm;
-    private final TNTPPingOneConfig tntpPingOneConfig;
+    private final PingOneWorkerService pingOneWorkerService;
     private final LocalizationHelper localizationHelper;
-    private final Helper client;
+    private final PingOneCredentialsService client;
 
     /**
      * Configuration for the node.
@@ -110,12 +111,13 @@ public class PingOneCredentialsPairWallet implements Node {
     public interface Config {
 
         /**
-         * The Configured service
+         * Reference to the PingOne Worker App.
+         *
+         * @return The PingOne Worker App.
          */
-        @Attribute(order = 100, choiceValuesClass = TNTPPingOneConfigChoiceValues.class)
-        default String tntpPingOneConfigName() {
-            return TNTPPingOneConfigChoiceValues.createTNTPPingOneConfigName("Global Default");
-        }
+        @Attribute(order = 100, requiredValue = true)
+        @PingOneWorker
+        PingOneWorkerConfig.Worker pingOneWorker();
 
         @Attribute(order = 200)
         default String pingOneUserIdAttribute() {
@@ -155,9 +157,7 @@ public class PingOneCredentialsPairWallet implements Node {
          * @return The message to display while choosing the delivery method.
          */
         @Attribute(order = 800)
-        default Map<Locale, String> deliveryMethodMessage() {
-            return Collections.emptyMap();
-        }
+        Map<Locale, String> deliveryMethodMessage();
 
         /**
          * The message to displayed to user to scan the QR code. Keyed on the locale. Falls back to
@@ -165,9 +165,7 @@ public class PingOneCredentialsPairWallet implements Node {
          * @return The mapping of locales to scan QR code messages.
          */
         @Attribute(order = 900)
-        default Map<Locale, String> scanQRCodeMessage() {
-            return Collections.emptyMap();
-        }
+        Map<Locale, String> scanQRCodeMessage();
 
         /**
          * The timeout in seconds for the verification process.
@@ -183,9 +181,7 @@ public class PingOneCredentialsPairWallet implements Node {
          * @return The message to display on the waiting indicator.
          */
         @Attribute(order = 1100)
-        default Map<Locale, String> waitingMessage() {
-            return Collections.emptyMap();
-        }
+        Map<Locale, String> waitingMessage();
 
         /**
          * Store the create wallet response in the shared state.
@@ -206,11 +202,12 @@ public class PingOneCredentialsPairWallet implements Node {
      * @param realm  The realm the node is in.
      */
     @Inject
-    public PingOneCredentialsPairWallet(@Assisted Config config, @Assisted Realm realm, Helper client,
-                                        LocalizationHelper localizationHelper) {
+    PingOneCredentialsPairWallet(@Assisted Config config, @Assisted Realm realm,
+                                 PingOneWorkerService pingOneWorkerService, PingOneCredentialsService client,
+                                 LocalizationHelper localizationHelper) {
         this.config = config;
         this.realm = realm;
-        this.tntpPingOneConfig = TNTPPingOneConfigChoiceValues.getTNTPPingOneConfig(config.tntpPingOneConfigName());
+        this.pingOneWorkerService = pingOneWorkerService;
         this.client = client;
         this.localizationHelper = localizationHelper;
     }
@@ -241,13 +238,14 @@ public class PingOneCredentialsPairWallet implements Node {
             }
 
             if (StringUtils.isBlank(pingOneUserId)) {
-                logger.error("Expected PingOne User ID to be set in sharedState.");
+                logger.warn("Expected PingOne User ID to be set in sharedState.");
                 return buildAction(FAILURE_OUTCOME_ID, context);
             }
 
             // Get PingOne Access Token
-            TNTPPingOneUtility pingOneUtility = TNTPPingOneUtility.getInstance();
-            AccessToken accessToken = pingOneUtility.getAccessToken(realm, tntpPingOneConfig);
+            PingOneWorkerConfig.Worker worker = config.pingOneWorker();
+            AccessToken accessToken = pingOneWorkerService.getAccessToken(realm, worker);
+
             if (accessToken == null) {
                 logger.error("Unable to get access token for PingOne Worker.");
                 return buildAction(FAILURE_OUTCOME_ID, context);
@@ -255,6 +253,7 @@ public class PingOneCredentialsPairWallet implements Node {
 
             // Check if choice was made
             Optional<ConfirmationCallback> confirmationCallback = context.getCallback(ConfirmationCallback.class);
+
             if (confirmationCallback.isPresent()) {
                 int choice = confirmationCallback.get().getSelectedIndex();
                 nodeState.putShared(PINGONE_PAIRING_DELIVERY_METHOD_KEY, choice);
@@ -271,7 +270,7 @@ public class PingOneCredentialsPairWallet implements Node {
                     case SMS -> smsDelivery = true;
                 }
 
-                return startPairingTransaction(context, accessToken, qrCodeDelivery, emailDelivery, smsDelivery,
+                return startPairingTransaction(context, accessToken, worker, qrCodeDelivery, emailDelivery, smsDelivery,
                                                pingOneUserId, config.digitalWalletApplicationId());
             }
 
@@ -282,7 +281,7 @@ public class PingOneCredentialsPairWallet implements Node {
                 if (!nodeState.isDefined(PINGONE_PAIRING_WALLET_ID_KEY)) {
                     return buildAction(FAILURE_OUTCOME_ID, context);
                 }
-                return getActionFromPairingTransactionStatus(context, accessToken, pingOneUserId);
+                return getActionFromPairingTransactionStatus(context, accessToken, worker, pingOneUserId);
             } else {
 
                 // Start new pairing transaction
@@ -290,13 +289,12 @@ public class PingOneCredentialsPairWallet implements Node {
                     List<Callback> callbacks = createChoiceCallbacks(context);
                     return send(callbacks).build();
                 } else {
-                    return startPairingTransaction(context, accessToken, config.qrCodeDelivery(), config.emailDelivery(),
-                                                   config.smsDelivery(), pingOneUserId,
+                    return startPairingTransaction(context, accessToken, worker, config.qrCodeDelivery(),
+                                                   config.emailDelivery(), config.smsDelivery(), pingOneUserId,
                                                    config.digitalWalletApplicationId());
                 }
             }
-        }
-        catch (Exception ex) {
+        } catch (Exception ex) {
             String stackTrace = org.apache.commons.lang.exception.ExceptionUtils.getStackTrace(ex);
             logger.error(loggerPrefix + "Exception occurred: ", ex);
             context.getStateFor(this).putTransient(loggerPrefix + "Exception", ex.getMessage());
@@ -306,6 +304,7 @@ public class PingOneCredentialsPairWallet implements Node {
     }
 
     private Action getActionFromPairingTransactionStatus(TreeContext context, AccessToken accessToken,
+                                                         PingOneWorkerConfig.Worker worker,
                                                          String pingOneUserId)
         throws Exception {
         NodeState nodeState = context.getStateFor(this);
@@ -330,10 +329,9 @@ public class PingOneCredentialsPairWallet implements Node {
 
         // Check transaction status and take appropriate action
         JsonValue response = client.readDigitalWallet(accessToken,
-                                                               tntpPingOneConfig.environmentRegion().getDomainSuffix(),
-                                                               tntpPingOneConfig.environmentId(),
-                                                               pingOneUserId,
-                                                               walletId);
+                                                      worker,
+                                                      pingOneUserId,
+                                                      walletId);
         // Retrieve response values
         String status = response.get(RESPONSE_STATUS).asString();
 
@@ -362,7 +360,8 @@ public class PingOneCredentialsPairWallet implements Node {
         }
     }
 
-    private Action startPairingTransaction(TreeContext context, AccessToken accessToken, boolean qrCodeDelivery,
+    private Action startPairingTransaction(TreeContext context, AccessToken accessToken,
+                                           PingOneWorkerConfig.Worker worker, boolean qrCodeDelivery,
                                            boolean emailDelivery, boolean smsDelivery, String pingOneUserId,
                                            String digitalWalletApplicationId)
         throws Exception {
@@ -378,8 +377,7 @@ public class PingOneCredentialsPairWallet implements Node {
         }
 
         JsonValue response = client.createDigitalWalletRequest(accessToken,
-                                                               tntpPingOneConfig.environmentRegion().getDomainSuffix(),
-                                                               tntpPingOneConfig.environmentId(),
+                                                               worker,
                                                                pingOneUserId,
                                                                digitalWalletApplicationId,
                                                                notificationList);
@@ -493,18 +491,28 @@ public class PingOneCredentialsPairWallet implements Node {
     @Override
     public InputState[] getInputs() {
         return new InputState[] {
-            new InputState(config.pingOneUserIdAttribute(), true),
-            new InputState(PINGONE_PAIRING_WALLET_ID_KEY),
-            new InputState(PINGONE_PAIRING_DELIVERY_METHOD_KEY),
-            new InputState(PINGONE_PAIRING_TIMEOUT_KEY),
-            new InputState(PINGONE_APPOPEN_URL_KEY),
-            new InputState(OBJECT_ATTRIBUTES)
+            new InputState(config.pingOneUserIdAttribute(), false),
+            new InputState(PINGONE_PAIRING_WALLET_ID_KEY, false),
+            new InputState(PINGONE_PAIRING_DELIVERY_METHOD_KEY, false),
+            new InputState(PINGONE_PAIRING_TIMEOUT_KEY, false),
+            new InputState(PINGONE_APPOPEN_URL_KEY, false),
+            new InputState(OBJECT_ATTRIBUTES, false)
             };
     }
 
-    public static class ProofingOutcomeProvider implements OutcomeProvider {
+    @Override
+    public OutputState[] getOutputs() {
+        return new OutputState[]{
+            new OutputState(PINGONE_PAIRING_WALLET_ID_KEY),
+            new OutputState(PINGONE_PAIRING_DELIVERY_METHOD_KEY),
+            new OutputState(PINGONE_PAIRING_TIMEOUT_KEY),
+            new OutputState(PINGONE_APPOPEN_URL_KEY),
+        };
+    }
+
+    public static class ProofingOutcomeProvider implements StaticOutcomeProvider {
         @Override
-        public List<Outcome> getOutcomes(PreferredLocales locales, JsonValue nodeAttributes) {
+        public List<Outcome> getOutcomes(PreferredLocales locales) {
             ResourceBundle bundle = locales.getBundleInPreferredLocale(PingOneCredentialsPairWallet.BUNDLE,
                                                                        OutcomeProvider.class.getClassLoader());
             List<Outcome> results = new ArrayList<>();

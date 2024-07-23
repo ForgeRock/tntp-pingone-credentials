@@ -26,7 +26,6 @@ import static org.forgerock.am.marketplace.pingonecredentials.Constants.SUCCESS_
 import static org.forgerock.json.JsonValue.array;
 import static org.forgerock.json.JsonValue.json;
 
-
 import com.google.inject.assistedinject.Assisted;
 import org.apache.commons.lang.StringUtils;
 import org.forgerock.json.JsonValue;
@@ -36,11 +35,13 @@ import org.forgerock.openam.auth.node.api.Action;
 import org.forgerock.openam.auth.node.api.InputState;
 import org.forgerock.openam.auth.node.api.Node;
 import org.forgerock.openam.auth.node.api.NodeState;
+import org.forgerock.openam.auth.node.api.OutputState;
 import org.forgerock.openam.auth.node.api.OutcomeProvider;
+import org.forgerock.openam.auth.node.api.StaticOutcomeProvider;
 import org.forgerock.openam.auth.node.api.TreeContext;
-import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfig;
-import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfigChoiceValues;
-import org.forgerock.openam.auth.service.marketplace.TNTPPingOneUtility;
+import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
+import org.forgerock.openam.integration.pingone.PingOneWorkerService;
+import org.forgerock.openam.integration.pingone.annotations.PingOneWorker;
 import org.forgerock.openam.core.realms.Realm;
 import org.forgerock.util.i18n.PreferredLocales;
 import org.slf4j.Logger;
@@ -52,24 +53,22 @@ import java.util.Collections;
 import java.util.List;
 import java.util.ResourceBundle;
 
-
-
-
 @Node.Metadata(
     outcomeProvider = PingOneCredentialsFindWallets.IssueOutcomeProvider.class,
     configClass = PingOneCredentialsFindWallets.Config.class,
-    tags = {"marketplace", "trustnetwork"})
+    tags = {"marketplace", "trustnetwork", "pingone"})
 public class PingOneCredentialsFindWallets implements Node {
 
     private final Config config;
     private final Realm realm;
-    private final TNTPPingOneConfig tntpPingOneConfig;
+    private final PingOneWorkerService pingOneWorkerService;
 
     private final Logger logger = LoggerFactory.getLogger(PingOneCredentialsFindWallets.class);
-    private final String loggerPrefix = "[PingOne Credentials Find Wallets Node]" + PingOneCredentialsPlugin.logAppender;
+    private static final String loggerPrefix = "[PingOne Credentials Find Wallets Node]" + PingOneCredentialsPlugin.LOG_APPENDER;
 
     public static final String BUNDLE = PingOneCredentialsFindWallets.class.getName();
-    private final Helper client;
+
+    private final PingOneCredentialsService client;
 
 
     /**
@@ -78,12 +77,13 @@ public class PingOneCredentialsFindWallets implements Node {
     public interface Config {
 
         /**
-         * The Configured service
+         * Reference to the PingOne Worker App.
+         *
+         * @return The PingOne Worker App.
          */
-        @Attribute(order = 100, choiceValuesClass = TNTPPingOneConfigChoiceValues.class)
-        default String tntpPingOneConfigName() {
-            return TNTPPingOneConfigChoiceValues.createTNTPPingOneConfigName("Global Default");
-        }
+        @Attribute(order = 100, requiredValue = true)
+        @PingOneWorker
+        PingOneWorkerConfig.Worker pingOneWorker();
 
         @Attribute(order = 200)
         default String pingOneUserIdAttribute() {
@@ -99,10 +99,11 @@ public class PingOneCredentialsFindWallets implements Node {
      * @param realm  The realm the node is in.
      */
     @Inject
-    public PingOneCredentialsFindWallets(@Assisted Config config, @Assisted Realm realm, Helper client) {
+    PingOneCredentialsFindWallets(@Assisted Config config, @Assisted Realm realm,
+                                  PingOneWorkerService pingOneWorkerService, PingOneCredentialsService client) {
         this.config = config;
         this.realm = realm;
-        this.tntpPingOneConfig = TNTPPingOneConfigChoiceValues.getTNTPPingOneConfig(config.tntpPingOneConfigName());
+        this.pingOneWorkerService = pingOneWorkerService;
         this.client = client;
     }
 
@@ -130,25 +131,22 @@ public class PingOneCredentialsFindWallets implements Node {
             }
 
             if (StringUtils.isBlank(pingOneUserId)) {
-                logger.error("Expected PingOne User ID to be set in sharedState.");
+                logger.warn("Expected PingOne User ID to be set in sharedState.");
                 return Action.goTo(FAILURE_OUTCOME_ID).build();
             }
 
             // Get PingOne Access Token
-            TNTPPingOneUtility pingOneUtility = TNTPPingOneUtility.getInstance();
-            AccessToken accessToken = pingOneUtility.getAccessToken(realm, tntpPingOneConfig);
+            PingOneWorkerConfig.Worker worker = config.pingOneWorker();
+            AccessToken accessToken = pingOneWorkerService.getAccessToken(realm, worker);
+
             if (accessToken == null) {
                 logger.error("Unable to get access token for PingOne Worker.");
                 return Action.goTo(FAILURE_OUTCOME_ID).build();
             }
 
-            JsonValue response = client.findWalletRequest(accessToken,
-                                                          tntpPingOneConfig.environmentRegion().getDomainSuffix(),
-                                                          tntpPingOneConfig.environmentId(),
-                                                          pingOneUserId);
+            JsonValue response = client.findWalletRequest(accessToken, worker, pingOneUserId);
 
             JsonValue wallets = response.get(RESPONSE_EMBEDDED).get(RESPONSE_DIGITALWALLETS);
-
             JsonValue activeWallets = json(array());
 
             for (JsonValue obj : wallets) {
@@ -179,8 +177,7 @@ public class PingOneCredentialsFindWallets implements Node {
                 nodeState.putShared(PINGONE_ACTIVE_WALLETS_DATA_KEY, activeWallets);
                 return Action.goTo(SUCCESS_MULTI_OUTCOME_ID).build();
             }
-        }
-        catch (Exception ex) {
+        } catch (Exception ex) {
             String stackTrace = org.apache.commons.lang.exception.ExceptionUtils.getStackTrace(ex);
             logger.error(loggerPrefix + "Exception occurred: ", ex);
             context.getStateFor(this).putTransient(loggerPrefix + "Exception", ex.getMessage());
@@ -192,14 +189,22 @@ public class PingOneCredentialsFindWallets implements Node {
     @Override
     public InputState[] getInputs() {
         return new InputState[] {
-            new InputState(config.pingOneUserIdAttribute(), true),
-            new InputState(OBJECT_ATTRIBUTES)
+            new InputState(config.pingOneUserIdAttribute(), false),
+            new InputState(OBJECT_ATTRIBUTES, false)
         };
     }
 
-    public static class IssueOutcomeProvider implements OutcomeProvider {
+    @Override
+    public OutputState[] getOutputs() {
+        return new OutputState[]{
+            new OutputState(PINGONE_WALLET_ID_KEY),
+            new OutputState(PINGONE_APPLICATION_INSTANCE_ID_KEY)
+        };
+    }
+
+    public static class IssueOutcomeProvider implements StaticOutcomeProvider {
         @Override
-        public List<Outcome> getOutcomes(PreferredLocales locales, JsonValue nodeAttributes) {
+        public List<Outcome> getOutcomes(PreferredLocales locales) {
             ResourceBundle bundle = locales.getBundleInPreferredLocale(PingOneCredentialsFindWallets.BUNDLE,
                                                                        OutcomeProvider.class.getClassLoader());
             List<Outcome> results = new ArrayList<>();

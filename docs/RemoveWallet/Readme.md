@@ -50,11 +50,10 @@ state.
       <td>Marketplace Service to integrate with PingOne Services
       </td>
     </tr>
-     <tr>
-    <td>Digital Wallet ID Attribute</td>
-    <td>Local attribute name to retrieve the digital wallet ID from the journey state.</td>
+    <tr>
+      <td>Digital Wallet ID Attribute</td>
+      <td>Local attribute name to retrieve the digital wallet ID from the journey state.</td>
     </tr>
-
   </tbody>
 </table>
 
@@ -80,4 +79,4 @@ appropriately.
 
 If the API call to PingOne Credentials fails, the following exception will be logged:
 
-* Error: PingOne Credentials Delete a Digital Wallet - <Status Code> - <Response Body> 
+* Error: PingOne Credentials Delete a Digital Wallet - `Status Code` - `Response Body` 

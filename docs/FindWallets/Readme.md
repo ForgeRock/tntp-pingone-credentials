@@ -45,11 +45,8 @@ This node retrieves `pingOneUserId` from the journey state or from the `objectAt
   <tbody>
     <tr>
       <td>PingOne Service</td>
-      <td>Marketplace Service to integrate with PingOne Services
-      </td>
+      <td>Marketplace Service to integrate with PingOne Services</td>
     </tr>
-  </tr>
-
   </tbody>
 </table>
 
@@ -77,4 +74,4 @@ appropriately.
 
 If the API call to PingOne Credentials fails, the following exception will be logged:
 
-* Error: PingOne Credentials Find a Wallet - <Status Code> - <Response Body> 
+* Error: PingOne Credentials Find a Wallet - `Status Code` - `Response Body` 

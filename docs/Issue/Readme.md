@@ -46,14 +46,12 @@ This node retrieves `pingOneUserId` from the journey state.
   <tbody>
     <tr>
       <td>PingOne Service</td>
-      <td>Marketplace Service to integrate with PingOne Services
-      </td>
+      <td>Marketplace Service to integrate with PingOne Services</td>
     </tr>
   <tr>
     <td>Credential Type ID</td>
     <td>The requested credential name</td>
   </tr>
-    </tr>
      <tr>
       <td>Attribute map</td>
       <td>The Key - Value mapping used for associating journey state attributes to
@@ -84,4 +82,4 @@ appropriately.
 
 If the API call to PingOne Credentials fails, the following exception will be logged:
 
-* Error: PingOne Credentials Issue a User Credential - <Status Code> - <Response Body> 
+* Error: PingOne Credentials Issue a User Credential - `Status Code` - `Response Body` 

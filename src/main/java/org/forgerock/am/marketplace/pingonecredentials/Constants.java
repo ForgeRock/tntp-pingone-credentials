@@ -21,6 +21,14 @@ public class Constants {
 
 	public static final String PINGONE_CREDENTIAL_UPDATE_KEY = "pingOneCredentialUpdate";
 	public static final String PINGONE_CREDENTIAL_ID_KEY = "pingOneCredentialId";
+	public static final String PINGONE_CREDENTIAL_TYPE_KEY = "pingOneCredentialType";
+
+	public static final String ENVIRONMENTS_PATH = "/environments/";
+	public static final String USERS_PATH = "/users/";
+	public static final String DIGITAL_WALLETS_PATH = "/digitalWallets";
+	public static final String CREDENTIALS_PATH = "/credentials";
+	public static final String PRESENTATION_SESSIONS_PATH = "/presentationSessions";
+	public static final String SESSION_DATA_PATH = "/sessionData";
 
 	public static final String RESPONSE_ID = "id";
 	public static final String RESPONSE_STATUS = "status";
@@ -49,7 +57,7 @@ public class Constants {
 	public static final String SUCCESS_MULTI_OUTCOME_ID = "successMulti";
 	public static final String FAILURE_OUTCOME_ID = "failure";
 	public static final String TIMEOUT_OUTCOME_ID = "timeout";
-	public static final String NOT_FOUND_OUTCOME_ID = "not_found";
+	public static final String NOT_FOUND_OUTCOME_ID = "notFound";
 	
 	protected final static String P1_BASE_URL = "https://api.pingone";
 	protected final static String REVOKE_CONTENT_TYPE = "application/vnd.pingidentity.validations.revokeCredential+json";

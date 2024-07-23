@@ -1,22 +1,29 @@
 package org.forgerock.am.marketplace.pingonecredentials;
 
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.CREDENTIALS_PATH;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.DIGITAL_WALLETS_PATH;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.ENVIRONMENTS_PATH;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PRESENTATION_SESSIONS_PATH;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_STATUS;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.REVOKED;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.REVOKE_CONTENT_TYPE;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RevokeResult;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.SESSION_DATA_PATH;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.USERS_PATH;
 import static org.forgerock.json.JsonValue.json;
+import static org.forgerock.json.JsonValue.field;
+import static org.forgerock.json.JsonValue.object;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.inject.Singleton;
 
-import org.forgerock.http.HttpApplicationException;
-import org.forgerock.http.handler.HttpClientHandler;
+import org.forgerock.http.Handler;
 import org.forgerock.http.header.AuthorizationHeader;
 import org.forgerock.http.header.ContentTypeHeader;
 import org.forgerock.http.header.MalformedHeaderException;
@@ -28,42 +35,31 @@ import org.forgerock.json.JsonValue;
 import org.forgerock.oauth2.core.AccessToken;
 
 import org.forgerock.openam.http.HttpConstants;
+import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
 import org.forgerock.services.context.RootContext;
-import org.forgerock.util.thread.listener.ShutdownManager;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 @Singleton
-public class Helper {
-	private final Logger logger = LoggerFactory.getLogger(Helper.class);
-	private final String loggerPrefix = "[PingOne Credentials Helper]" + PingOneCredentialsPlugin.logAppender;
-	private final HttpClientHandler handler;
+public class PingOneCredentialsService {
+	private final Handler handler;
+
+	private final Logger logger = LoggerFactory.getLogger(PingOneCredentialsService.class);
 
 	@Inject
-	public Helper(ShutdownManager shutdownManager) throws HttpApplicationException{
-	    this.handler = new HttpClientHandler();
-	    shutdownManager.addShutdownListener(() -> {
-	      try {
-	        handler.close();
-	      } catch (IOException e) {
-	        logger.error(loggerPrefix + " Could not close HTTP client", e);
-	      }
-	    });
+	public PingOneCredentialsService(@Named("CloseableHttpClientHandler") org.forgerock.http.Handler handler) {
+	    this.handler = handler;
 	}
 
-	protected JsonValue findWalletRequest(AccessToken accessToken, String domainSuffix,
-	                                                String environmentId, String pingOneUID) throws Exception {
+	JsonValue findWalletRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker, String pingOneUID) throws Exception {
 		Request request;
 
 		try {
-			String theURI = Constants.P1_BASE_URL +
-			                domainSuffix +
-			                "/v1/environments/" +
-			                environmentId +
-			                "/users/" +
-			                pingOneUID +
-			                "/digitalWallets";
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
+			                USERS_PATH + pingOneUID +
+			                DIGITAL_WALLETS_PATH;
 
 			URI uri = URI.create(theURI);
 
@@ -72,6 +68,8 @@ public class Helper {
 
 			addAuthorizationHeader(request, accessToken);
 			Response response = handler.handle(new RootContext(), request).getOrThrow();
+
+			logger.debug("response: " + response.getEntity().getJson());
 
 			if (response.getStatus().isSuccessful()) {
 				return json(response.getEntity().getJson());
@@ -84,35 +82,28 @@ public class Helper {
 		}
 	}
 
-	protected JsonValue credentialIssueRequest(AccessToken accessToken, String domainSuffix,
-	                                           String environmentId, String pingOneUID, String credentialTypeId,
-	                                           JsonValue attributes) throws Exception {
+	JsonValue credentialIssueRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker, String pingOneUID,
+	                                 String credentialTypeId, JsonValue attributes) throws Exception {
 		Request request;
 
 		try {
-			String theURI = Constants.P1_BASE_URL +
-			                domainSuffix +
-			                "/v1/environments/" +
-			                environmentId +
-			                "/users/" +
-			                pingOneUID +
-			                "/credentials";
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
+			                USERS_PATH + pingOneUID +
+			                CREDENTIALS_PATH;
 
 			URI uri = URI.create(theURI);
 
-			JsonValue credentialBody = new JsonValue(new LinkedHashMap<String, Object>(1));
+			JsonValue credentialTypeIdBody = json(object(
+				field("id", credentialTypeId)));
 
-			JsonValue credentialTypeIdBody = new JsonValue(new LinkedHashMap<String, Object>(1));
-			credentialTypeIdBody.add("id", credentialTypeId);
-
-			credentialBody.put("credentialType", credentialTypeIdBody);
-			credentialBody.put("data", attributes);
+			JsonValue credentialBody = json(object(
+				field("credentialType", credentialTypeIdBody),
+				field("data", attributes)));
 
 			request = new Request();
 			request.setUri(uri).setMethod(HttpConstants.Methods.POST);
-
-			if (credentialBody.isNotNull())
-				request.getEntity().setJson(credentialBody);
+			request.getEntity().setJson(credentialBody);
 
 			addAuthorizationHeader(request, accessToken);
 			Response response = handler.handle(new RootContext(), request).getOrThrow();
@@ -128,36 +119,29 @@ public class Helper {
 		}
 	}
 
-	protected JsonValue credentialUpdateRequest(AccessToken accessToken, String domainSuffix,
-	                                           String environmentId, String pingOneUID, String credentialTypeId,
-	                                           String credentialId, JsonValue attributes) throws Exception {
+	JsonValue credentialUpdateRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker, String pingOneUID,
+	                                  String credentialTypeId, String credentialId,
+	                                  JsonValue attributes) throws Exception {
 		Request request;
 
 		try {
-			String theURI = Constants.P1_BASE_URL +
-			                domainSuffix +
-			                "/v1/environments/" +
-			                environmentId +
-			                "/users/" +
-			                pingOneUID +
-			                "/credentials/" +
-			                credentialId;
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
+			                USERS_PATH + pingOneUID +
+			                CREDENTIALS_PATH + "/" + credentialId;
 
 			URI uri = URI.create(theURI);
 
-			JsonValue credentialBody = new JsonValue(new LinkedHashMap<String, Object>(1));
+			JsonValue credentialTypeIdBody = json(object(
+				field("id", credentialTypeId)));
 
-			JsonValue credentialTypeIdBody = new JsonValue(new LinkedHashMap<String, Object>(1));
-			credentialTypeIdBody.add("id", credentialTypeId);
-
-			credentialBody.put("credentialType", credentialTypeIdBody);
-			credentialBody.put("data", attributes);
+			JsonValue credentialBody = json(object(
+				field("credentialType", credentialTypeIdBody),
+				field("data", attributes)));
 
 			request = new Request();
 			request.setUri(uri).setMethod(HttpConstants.Methods.PUT);
-
-			if (credentialBody.isNotNull())
-				request.getEntity().setJson(credentialBody);
+			request.getEntity().setJson(credentialBody);
 
 			addAuthorizationHeader(request, accessToken);
 			Response response = handler.handle(new RootContext(), request).getOrThrow();
@@ -173,32 +157,29 @@ public class Helper {
 		}
 	}
 
-	protected JsonValue createDigitalWalletRequest(AccessToken accessToken, String domainSuffix, String environmentId,
+	JsonValue createDigitalWalletRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
 	                                        String pingOneUserId, String digitalWalletApplicationId,
 	                                        List<String> notificationList) throws Exception {
 		Request request;
 
 		try {
-			String theURI = Constants.P1_BASE_URL +
-			                domainSuffix +
-			                "/v1/environments/" +
-			                environmentId +
-			                "/users/" +
-			                pingOneUserId +
-			                "/digitalWallets";
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
+			                USERS_PATH + pingOneUserId +
+			                DIGITAL_WALLETS_PATH;
 
 			URI uri = URI.create(theURI);
 
-			JsonValue body = new JsonValue(new LinkedHashMap<String, Object>(1));
+			JsonValue body = json(object(1));
 
 			// Digital Wallet Application ID
-			JsonValue applicationId = new JsonValue(new LinkedHashMap<String, Object>(1));
+			JsonValue applicationId = json(object(1));
 			applicationId.put("id", digitalWalletApplicationId);
 
 			body.put("digitalWalletApplication", applicationId);
 
 			if(!notificationList.isEmpty()) {
-				JsonValue notification = new JsonValue(new LinkedHashMap<String, Object>(1));
+				JsonValue notification = json(object(1));
 				notification.put("methods", notificationList);
 				body.put("notification", notification);
 			}
@@ -223,21 +204,15 @@ public class Helper {
 		}
 	}
 
-
-
-	protected JsonValue readDigitalWallet(AccessToken accessToken, String domainSuffix, String environmentId,
-	                                        String pingOneUserId, String digitalWalletId) throws Exception {
+	JsonValue readDigitalWallet(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
+	                            String pingOneUserId, String digitalWalletId) throws Exception {
 		Request request;
 
 		try {
-			String theURI = Constants.P1_BASE_URL +
-			                domainSuffix +
-			                "/v1/environments/" +
-			                environmentId +
-			                "/users/" +
-			                pingOneUserId +
-			                "/digitalWallets/" +
-			                digitalWalletId;
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
+			                USERS_PATH + pingOneUserId +
+			                DIGITAL_WALLETS_PATH + "/" + digitalWalletId;
 
 			URI uri = URI.create(theURI);
 
@@ -257,26 +232,24 @@ public class Helper {
 		}
 	}
 
-	protected JsonValue createVerificationRequest(AccessToken accessToken, String domainSuffix, String environmentId,
-	                                              String message, String credentialType, List<String> attributeKeys,
-	                                              JsonValue customCredentialsPayload) throws Exception {
+	JsonValue createVerificationRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
+	                                    String message, String credentialType, List<String> attributeKeys,
+	                                    JsonValue customCredentialsPayload) throws Exception {
 		Request request;
 
 		try {
-			String theURI = Constants.P1_BASE_URL +
-			                domainSuffix +
-			                "/v1/environments/" +
-			                environmentId +
-			                "/presentationSessions";
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
+			                PRESENTATION_SESSIONS_PATH;
 
 			URI uri = URI.create(theURI);
 
-			JsonValue body = new JsonValue(new LinkedHashMap<String, Object>(1));
+			JsonValue body = json(object(1));
 
 			body.put("message", message);
 			body.put("protocol", "NATIVE");
 
-			JsonValue credential = new JsonValue(new LinkedHashMap<String, Object>(1));
+			JsonValue credential = json(object(1));
 
 			credential.put("type", credentialType);
 			credential.put("keys", attributeKeys);
@@ -310,7 +283,7 @@ public class Helper {
 		}
 	}
 
-	protected JsonValue createVerificationRequestPush(AccessToken accessToken, String domainSuffix, String environmentId,
+	JsonValue createVerificationRequestPush(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
 	                                                  String message, String credentialType,
 	                                                  List<String> attributeKeys, String applicationInstanceId,
 	                                                  String digitalWalletApplicationId,
@@ -318,11 +291,9 @@ public class Helper {
 		Request request;
 
 		try {
-			String theURI = Constants.P1_BASE_URL +
-			                domainSuffix +
-			                "/v1/environments/" +
-			                environmentId +
-			                "/presentationSessions";
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
+			                PRESENTATION_SESSIONS_PATH;
 
 			URI uri = URI.create(theURI);
 
@@ -375,18 +346,15 @@ public class Helper {
 		}
 	}
 
-	protected JsonValue readVerificationSession(AccessToken accessToken, String domainSuffix, String environmentId,
-	                                            String sessionId) throws Exception {
+	JsonValue readVerificationSession(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
+	                                  String sessionId) throws Exception {
 		Request request;
 
 		try {
-			String theURI = Constants.P1_BASE_URL +
-			                domainSuffix +
-			                "/v1/environments/" +
-			                environmentId +
-			                "/presentationSessions/" +
-			                sessionId +
-			                "/sessionData";
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId()  +
+			                PRESENTATION_SESSIONS_PATH + "/" + sessionId +
+			                SESSION_DATA_PATH;
 
 			URI uri = URI.create(theURI);
 
@@ -407,18 +375,14 @@ public class Helper {
 		}
 	}
 
-	protected boolean deleteWalletRequest(AccessToken accessToken, String domainSuffix, String environmentId,
-	                                      String pingOneUserId, String digitalWalletId) throws Exception {
+	boolean deleteWalletRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
+	                            String pingOneUserId, String digitalWalletId) throws Exception {
 		Request request;
 		try {
-			String theURI = Constants.P1_BASE_URL +
-			                domainSuffix +
-			                "/v1/environments/" +
-			                environmentId +
-			                "/users/" +
-			                pingOneUserId +
-			                "/digitalWallets/" +
-			                digitalWalletId;
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
+			                USERS_PATH + pingOneUserId +
+			                DIGITAL_WALLETS_PATH + "/" +digitalWalletId;
 
 			URI uri = URI.create(theURI);
 
@@ -441,19 +405,15 @@ public class Helper {
 		}
 	}
 
-	protected RevokeResult revokeCredentialRequest(AccessToken accessToken, String domainSuffix, String environmentId,
-	                                                         String pingOneUserId, String credentialId) throws Exception {
+	RevokeResult revokeCredentialRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
+	                                     String pingOneUserId, String credentialId) throws Exception {
 		Request request;
 		try {
 
-			String theURI = Constants.P1_BASE_URL +
-			                domainSuffix +
-			                "/v1/environments/" +
-			                environmentId +
-			                "/users/" +
-			                pingOneUserId +
-			                "/credentials/" +
-			                credentialId;
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
+			                USERS_PATH + pingOneUserId +
+			                CREDENTIALS_PATH + "/" + credentialId;
 
 			URI uri = URI.create(theURI);
 
@@ -486,11 +446,10 @@ public class Helper {
 		}
 	}
 
-	protected static void addAuthorizationHeader(Request request, AccessToken accessToken) throws MalformedHeaderException {
+	private static void addAuthorizationHeader(Request request, AccessToken accessToken) throws MalformedHeaderException {
 		AuthorizationHeader header = new AuthorizationHeader();
 		BearerToken bearerToken = new BearerToken(accessToken.getTokenId());
 		header.setRawValue(BearerToken.NAME + " " + bearerToken);
 		request.addHeaders(header);
 	}
-	public static void main(String[] args) {}
 }

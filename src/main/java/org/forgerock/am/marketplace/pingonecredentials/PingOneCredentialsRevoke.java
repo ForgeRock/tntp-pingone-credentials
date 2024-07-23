@@ -22,13 +22,15 @@ import org.forgerock.json.JsonValue;
 import org.forgerock.oauth2.core.AccessToken;
 import org.forgerock.openam.annotations.sm.Attribute;
 import org.forgerock.openam.auth.node.api.Action;
+import org.forgerock.openam.auth.node.api.InputState;
 import org.forgerock.openam.auth.node.api.Node;
 import org.forgerock.openam.auth.node.api.NodeState;
 import org.forgerock.openam.auth.node.api.OutcomeProvider;
+import org.forgerock.openam.auth.node.api.StaticOutcomeProvider;
 import org.forgerock.openam.auth.node.api.TreeContext;
-import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfig;
-import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfigChoiceValues;
-import org.forgerock.openam.auth.service.marketplace.TNTPPingOneUtility;
+import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
+import org.forgerock.openam.integration.pingone.PingOneWorkerService;
+import org.forgerock.openam.integration.pingone.annotations.PingOneWorker;
 import org.forgerock.openam.core.realms.Realm;
 import org.forgerock.util.i18n.PreferredLocales;
 import org.slf4j.Logger;
@@ -40,24 +42,21 @@ import java.util.Collections;
 import java.util.List;
 import java.util.ResourceBundle;
 
-
-
-
 @Node.Metadata(
     outcomeProvider = PingOneCredentialsRevoke.IssueOutcomeProvider.class,
     configClass = PingOneCredentialsRevoke.Config.class,
-    tags = {"marketplace", "trustnetwork"})
+    tags = {"marketplace", "trustnetwork", "pingone"})
 public class PingOneCredentialsRevoke implements Node {
 
     private final Config config;
     private final Realm realm;
-    private final TNTPPingOneConfig tntpPingOneConfig;
+    private final PingOneWorkerService pingOneWorkerService;
 
     private final Logger logger = LoggerFactory.getLogger(PingOneCredentialsRevoke.class);
-    private final String loggerPrefix = "[PingOne Credentials Revoke Node]" + PingOneCredentialsPlugin.logAppender;
+    private static final String loggerPrefix = "[PingOne Credentials Revoke Node]" + PingOneCredentialsPlugin.LOG_APPENDER;
 
     public static final String BUNDLE = PingOneCredentialsRevoke.class.getName();
-    private final Helper client;
+    private final PingOneCredentialsService client;
 
 
     /**
@@ -66,12 +65,13 @@ public class PingOneCredentialsRevoke implements Node {
     public interface Config {
 
         /**
-         * The Configured service
+         * Reference to the PingOne Worker App.
+         *
+         * @return The PingOne Worker App.
          */
-        @Attribute(order = 100, choiceValuesClass = TNTPPingOneConfigChoiceValues.class)
-        default String tntpPingOneConfigName() {
-            return TNTPPingOneConfigChoiceValues.createTNTPPingOneConfigName("Global Default");
-        }
+        @Attribute(order = 100, requiredValue = true)
+        @PingOneWorker
+        PingOneWorkerConfig.Worker pingOneWorker();
 
         @Attribute(order = 200)
         default String pingOneUserIdAttribute() {
@@ -93,10 +93,11 @@ public class PingOneCredentialsRevoke implements Node {
      * @param realm  The realm the node is in.
      */
     @Inject
-    public PingOneCredentialsRevoke(@Assisted Config config, @Assisted Realm realm,  Helper client) {
+    PingOneCredentialsRevoke(@Assisted Config config, @Assisted Realm realm,
+                                    PingOneWorkerService pingOneWorkerService,  PingOneCredentialsService client) {
         this.config = config;
         this.realm = realm;
-        this.tntpPingOneConfig = TNTPPingOneConfigChoiceValues.getTNTPPingOneConfig(config.tntpPingOneConfigName());
+        this.pingOneWorkerService = pingOneWorkerService;
         this.client = client;
     }
 
@@ -124,7 +125,7 @@ public class PingOneCredentialsRevoke implements Node {
             }
 
             if (StringUtils.isBlank(pingOneUserId)) {
-                logger.error("Expected PingOne User ID to be set in sharedState.");
+                logger.warn("Expected PingOne User ID to be set in sharedState.");
                 return Action.goTo(FAILURE_OUTCOME_ID).build();
             }
 
@@ -133,31 +134,30 @@ public class PingOneCredentialsRevoke implements Node {
                                    ? nodeState.get(config.credentialId()).asString()
                                    : null;
             if (StringUtils.isBlank(credentialId)) {
-                logger.error("Expected credentialId to be set in sharedState.");
+                logger.warn("Expected credentialId to be set in sharedState.");
                 return Action.goTo(FAILURE_OUTCOME_ID).build();
             }
 
             // Get PingOne Access Token
-            TNTPPingOneUtility pingOneUtility = TNTPPingOneUtility.getInstance();
-            AccessToken accessToken = pingOneUtility.getAccessToken(realm, tntpPingOneConfig);
+            PingOneWorkerConfig.Worker worker = config.pingOneWorker();
+            AccessToken accessToken = pingOneWorkerService.getAccessToken(realm, worker);
+
             if (accessToken == null) {
                 logger.error("Unable to get access token for PingOne Worker.");
                 return  Action.goTo(FAILURE_OUTCOME_ID).build();
             }
 
             RevokeResult result = client.revokeCredentialRequest(accessToken,
-                                                                   tntpPingOneConfig.environmentRegion().getDomainSuffix(),
-                                                                   tntpPingOneConfig.environmentId(),
-                                                                   pingOneUserId,
-                                                                   credentialId);
+                                                                 worker,
+                                                                 pingOneUserId,
+                                                                 credentialId);
 
             if(result.equals(RevokeResult.REVOKED)) {
                 return Action.goTo(SUCCESS_OUTCOME_ID).build();
             } else {
                 return Action.goTo(NOT_FOUND_OUTCOME_ID).build();
             }
-        }
-        catch (Exception ex) {
+        } catch (Exception ex) {
             String stackTrace = org.apache.commons.lang.exception.ExceptionUtils.getStackTrace(ex);
             logger.error(loggerPrefix + "Exception occurred: ", ex);
             context.getStateFor(this).putTransient(loggerPrefix + "Exception", ex.getMessage());
@@ -166,9 +166,18 @@ public class PingOneCredentialsRevoke implements Node {
         }
     }
 
-    public static class IssueOutcomeProvider implements OutcomeProvider {
+    @Override
+    public InputState[] getInputs() {
+        return new InputState[] {
+            new InputState(config.pingOneUserIdAttribute(), false),
+            new InputState(config.credentialId(), false),
+            new InputState(OBJECT_ATTRIBUTES, false)
+        };
+    }
+
+    public static class IssueOutcomeProvider implements StaticOutcomeProvider {
         @Override
-        public List<Outcome> getOutcomes(PreferredLocales locales, JsonValue nodeAttributes) {
+        public List<Outcome> getOutcomes(PreferredLocales locales) {
             ResourceBundle bundle = locales.getBundleInPreferredLocale(PingOneCredentialsRevoke.BUNDLE,
                                                                        OutcomeProvider.class.getClassLoader());
             List<Outcome> results = new ArrayList<>();

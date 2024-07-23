@@ -13,7 +13,6 @@ import static org.forgerock.am.marketplace.pingonecredentials.Constants.FAILURE_
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.INITIAL;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.OBJECT_ATTRIBUTES;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_APPLICATION_INSTANCE_ID_KEY;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_USER_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_TIMEOUT_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_DELIVERY_METHOD_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_SESSION_KEY;
@@ -53,14 +52,17 @@ import org.forgerock.json.JsonValue;
 import org.forgerock.oauth2.core.AccessToken;
 import org.forgerock.openam.annotations.sm.Attribute;
 import org.forgerock.openam.auth.node.api.Action;
+import org.forgerock.openam.auth.node.api.InputState;
 import org.forgerock.openam.auth.node.api.Node;
 import org.forgerock.openam.auth.node.api.NodeState;
 import org.forgerock.openam.auth.node.api.OutcomeProvider;
+import org.forgerock.openam.auth.node.api.OutputState;
+import org.forgerock.openam.auth.node.api.StaticOutcomeProvider;
 import org.forgerock.openam.auth.node.api.TreeContext;
 import org.forgerock.openam.auth.nodes.helpers.LocalizationHelper;
-import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfig;
-import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfigChoiceValues;
-import org.forgerock.openam.auth.service.marketplace.TNTPPingOneUtility;
+import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
+import org.forgerock.openam.integration.pingone.PingOneWorkerService;
+import org.forgerock.openam.integration.pingone.annotations.PingOneWorker;
 import org.forgerock.openam.authentication.callbacks.PollingWaitCallback;
 import org.forgerock.openam.core.realms.Realm;
 import org.forgerock.openam.utils.qr.GenerationUtils;
@@ -70,13 +72,10 @@ import org.slf4j.LoggerFactory;
 
 import com.google.inject.assistedinject.Assisted;
 
-
-
-
 @Node.Metadata(
 		outcomeProvider = PingOneCredentialsVerification.AuthenticationOutcomeProvider.class,
 		configClass = PingOneCredentialsVerification.Config.class,
-		tags = {"marketplace", "trustnetwork" })
+		tags = {"marketplace", "trustnetwork", "pingone"})
 public class PingOneCredentialsVerification implements Node {
 
 	/** How often to poll AM for a response in milliseconds. */
@@ -86,7 +85,7 @@ public class PingOneCredentialsVerification implements Node {
 	public static final String HIDDEN_CALLBACK_ID = "pingOneCredentialVerificationUri";
 
 	private final Logger logger = LoggerFactory.getLogger(PingOneCredentialsVerification.class);
-	private final String loggerPrefix = "[PingOne Credentials Verification Node]" + PingOneCredentialsPlugin.logAppender;
+	private static final String loggerPrefix = "[PingOne Credentials Verification Node]" + PingOneCredentialsPlugin.LOG_APPENDER;
 
 	public static final String BUNDLE = PingOneCredentialsVerification.class.getName();
 
@@ -100,33 +99,29 @@ public class PingOneCredentialsVerification implements Node {
 
 	private final Config config;
 	private final Realm realm;
-	private final TNTPPingOneConfig tntpPingOneConfig;
+	private final PingOneWorkerService pingOneWorkerService;
 	private final LocalizationHelper localizationHelper;
-	private final Helper client;
+	private final PingOneCredentialsService client;
 
 	
 	/**
 	 * Configuration for the node.
 	 */
 	public interface Config {
-
 		/**
-		 * The Configured service
+		 * Reference to the PingOne Worker App.
+		 *
+		 * @return The PingOne Worker App.
 		 */
-		@Attribute(order = 100, choiceValuesClass = TNTPPingOneConfigChoiceValues.class)
-		default String tntpPingOneConfigName() {
-			return TNTPPingOneConfigChoiceValues.createTNTPPingOneConfigName("Global Default");
-		}
+		@Attribute(order = 100, requiredValue = true)
+		@PingOneWorker
+		PingOneWorkerConfig.Worker pingOneWorker();
 
 		@Attribute(order = 200)
-		default String credentialType() {
-			return "";
-		}
+		default String credentialType() { return ""; }
 
 		@Attribute(order = 300)
-		default List<String> attributeKeys() {
-			return Collections.emptyList();
-		}
+		List<String> attributeKeys();
 
 		/**
 		 * The Pairing URL delivery method.
@@ -155,16 +150,13 @@ public class PingOneCredentialsVerification implements Node {
 			return false;
 		}
 
-
 		/**
 		 * The message to display to the user allowing them to choose the delivery method. Keyed on the locale.
 		 * Falls back to default.deliverMethodMessage.
 		 * @return The message to display while choosing the delivery method.
 		 */
 		@Attribute(order = 800)
-		default Map<Locale, String> deliveryMethodMessage() {
-			return Collections.emptyMap();
-		}
+		Map<Locale, String> deliveryMethodMessage();
 
 		/**
 		 * The message to displayed to user to scan the QR code. Keyed on the locale. Falls back to
@@ -172,9 +164,7 @@ public class PingOneCredentialsVerification implements Node {
 		 * @return The mapping of locales to scan QR code messages.
 		 */
 		@Attribute(order = 900)
-		default Map<Locale, String> scanQRCodeMessage() {
-			return Collections.emptyMap();
-		}
+		Map<Locale, String> scanQRCodeMessage();
 
 		/**
 		 * The timeout in seconds for the verification process.
@@ -190,18 +180,14 @@ public class PingOneCredentialsVerification implements Node {
 		 * @return The message to display on the waiting indicator.
 		 */
 		@Attribute(order = 1100)
-		default Map<Locale, String> waitingMessage() {
-			return Collections.emptyMap();
-		}
+		Map<Locale, String> waitingMessage();
 
-		/**
+		/**ss
 		 * The message to display to the user during a push verification request, keyed on the locale. Falls back to default.waitingMessage.
 		 * @return The message to display on the waiting indicator.
 		 */
 		@Attribute(order = 1200)
-		default Map<Locale, String> pushMessage() {
-			return Collections.emptyMap();
-		}
+		Map<Locale, String> pushMessage();
 
 		/**
 		 * Store the create verification response in the shared state.
@@ -224,11 +210,12 @@ public class PingOneCredentialsVerification implements Node {
 	}
 
 	@Inject
-	public PingOneCredentialsVerification(@Assisted Config config, @Assisted Realm realm, Helper client,
+	PingOneCredentialsVerification(@Assisted Config config, @Assisted Realm realm,
+	                                      PingOneWorkerService pingOneWorkerService, PingOneCredentialsService client,
 	                                      LocalizationHelper localizationHelper) {
 		this.config = config;
 		this.realm = realm;
-		this.tntpPingOneConfig = TNTPPingOneConfigChoiceValues.getTNTPPingOneConfig(config.tntpPingOneConfigName());
+		this.pingOneWorkerService = pingOneWorkerService;
 		this.client = client;
 		this.localizationHelper = localizationHelper;
 	}
@@ -241,19 +228,16 @@ public class PingOneCredentialsVerification implements Node {
 			NodeState nodeState = context.getStateFor(this);
 
 			// Get PingOne Access Token
-			TNTPPingOneUtility pingOneUtility = TNTPPingOneUtility.getInstance();
-			AccessToken accessToken = pingOneUtility.getAccessToken(realm, tntpPingOneConfig);
-			if (accessToken == null) {
-				logger.error("Unable to get access token for PingOne Worker.");
-				return buildAction(FAILURE_OUTCOME_ID, context);
-			}
+			PingOneWorkerConfig.Worker worker = config.pingOneWorker();
+			AccessToken accessToken = pingOneWorkerService.getAccessToken(realm, worker);
 
 			// Check if choice was made
 			Optional<ConfirmationCallback> confirmationCallback = context.getCallback(ConfirmationCallback.class);
 			if (confirmationCallback.isPresent()) {
 				int choice = confirmationCallback.get().getSelectedIndex();
 				nodeState.putShared(PINGONE_VERIFICATION_DELIVERY_METHOD_KEY, choice);
-				return startVerificationTransaction(context, accessToken, Constants.VerificationDeliveryMethod.fromIndex(choice),
+
+				return startVerificationTransaction(context, accessToken, worker, Constants.VerificationDeliveryMethod.fromIndex(choice),
 				                                    config.credentialType(), getPushMessage(context),
 				                                    config.attributeKeys());
 			}
@@ -265,14 +249,14 @@ public class PingOneCredentialsVerification implements Node {
 				if (!nodeState.isDefined(PINGONE_VERIFICATION_SESSION_KEY)) {
 					return buildAction(FAILURE_OUTCOME_ID, context);
 				}
-				return getActionFromVerificationStatus(context, accessToken);
+				return getActionFromVerificationStatus(context, accessToken, worker);
 			} else {
 				// Start new pairing transaction
 				if (config.allowDeliveryMethodSelection()) {
 					List<Callback> callbacks = createChoiceCallbacks(context);
 					return send(callbacks).build();
 				} else {
-					return startVerificationTransaction(context, accessToken, config.deliveryMethod(),
+					return startVerificationTransaction(context, accessToken, worker, config.deliveryMethod(),
 					                                    config.credentialType(), getPushMessage(context),
 					                                    config.attributeKeys());
 				}
@@ -286,8 +270,8 @@ public class PingOneCredentialsVerification implements Node {
 		}
 	}
 
-	private Action getActionFromVerificationStatus(TreeContext context, AccessToken accessToken)
-		throws Exception {
+	private Action getActionFromVerificationStatus(TreeContext context, AccessToken accessToken,
+	                                               PingOneWorkerConfig.Worker worker) throws Exception {
 		NodeState nodeState = context.getStateFor(this);
 
 		// Retrieve verification session ID from shared state
@@ -304,8 +288,7 @@ public class PingOneCredentialsVerification implements Node {
 
 		// Check transaction status and take appropriate action
 		JsonValue response = client.readVerificationSession(accessToken,
-		                                                    tntpPingOneConfig.environmentRegion().getDomainSuffix(),
-		                                                    tntpPingOneConfig.environmentId(),
+		                                                    worker,
 		                                                    sessionId);
 
 		// Retrieve response values
@@ -335,7 +318,8 @@ public class PingOneCredentialsVerification implements Node {
 	}
 
 	private Action startVerificationTransaction(TreeContext context, AccessToken accessToken,
-	                                            Constants.VerificationDeliveryMethod deliveryMethod,
+	                                            PingOneWorkerConfig.Worker worker,
+	                                            VerificationDeliveryMethod deliveryMethod,
 	                                            String credentialType, String message,
 	                                            List<String> attributeKeys) throws Exception {
 
@@ -351,8 +335,7 @@ public class PingOneCredentialsVerification implements Node {
 			}
 
 			JsonValue response = client.createVerificationRequest(accessToken,
-			                                                      tntpPingOneConfig.environmentRegion().getDomainSuffix(),
-			                                                      tntpPingOneConfig.environmentId(),
+																  worker,
 			                                                      message,
 			                                                      credentialType,
 			                                                      attributeKeys,
@@ -360,7 +343,6 @@ public class PingOneCredentialsVerification implements Node {
 
 			// Retrieve response values
 			String sessionId = response.get(RESPONSE_ID).asString();
-
 
 			qrUrl = response.get(RESPONSE_LINKS).get(RESPONSE_APPOPENURL).get(RESPONSE_HREF).asString();
 
@@ -388,8 +370,7 @@ public class PingOneCredentialsVerification implements Node {
 			}
 
 			JsonValue response = client.createVerificationRequestPush(accessToken,
-			                                                          tntpPingOneConfig.environmentRegion().getDomainSuffix(),
-			                                                          tntpPingOneConfig.environmentId(),
+			                                                          worker,
 			                                                          message,
 			                                                          credentialType,
 			                                                          attributeKeys,
@@ -504,9 +485,32 @@ public class PingOneCredentialsVerification implements Node {
 		return builder;
 	}
 
-	public static class AuthenticationOutcomeProvider implements OutcomeProvider {
+	@Override
+	public InputState[] getInputs() {
+		return new InputState[] {
+			new InputState(PINGONE_VERIFICATION_SESSION_KEY, false),
+			new InputState(PINGONE_VERIFICATION_DELIVERY_METHOD_KEY, false),
+			new InputState(PINGONE_VERIFICATION_TIMEOUT_KEY, false),
+			new InputState(OBJECT_ATTRIBUTES, false),
+			new InputState(config.digitalWalletApplicationId(), false),
+			new InputState(PINGONE_APPLICATION_INSTANCE_ID_KEY, false),
+			new InputState(PINGONE_CREDENTIAL_VERIFICATION_KEY, false)
+		};
+	}
+
+	@Override
+	public OutputState[] getOutputs() {
+		return new OutputState[]{
+			new OutputState(PINGONE_VERIFICATION_SESSION_KEY),
+			new OutputState(PINGONE_VERIFICATION_DELIVERY_METHOD_KEY),
+			new OutputState(PINGONE_VERIFICATION_TIMEOUT_KEY),
+			new OutputState(PINGONE_APPLICATION_INSTANCE_ID_KEY),
+			};
+	}
+
+	public static class AuthenticationOutcomeProvider implements StaticOutcomeProvider {
 		@Override
-		public List<Outcome> getOutcomes(PreferredLocales locales, JsonValue nodeAttributes) {
+		public List<Outcome> getOutcomes(PreferredLocales locales) {
 			ResourceBundle bundle = locales.getBundleInPreferredLocale(PingOneCredentialsVerification.BUNDLE,
 			                                                           OutcomeProvider.class.getClassLoader());
 			List<Outcome> results = new ArrayList<>();

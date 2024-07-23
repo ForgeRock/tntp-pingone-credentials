@@ -45,25 +45,22 @@ This node retrieves `PingOne User ID` and `Credential Type ID` from the journey 
   <tbody>
     <tr>
       <td>PingOne Service</td>
-      <td>Marketplace Service to integrate with PingOne Services
-      </td>
+      <td>Marketplace Service to integrate with PingOne Services</td>
     </tr>
-  <tr>
-    <td>Credential Type ID</td>
-    <td>The requested credential name</td>
-  </tr>
-     <tr>
+    <tr>
+      <td>Credential Type ID</td>
+      <td>The requested credential name</td>
+    </tr>
+    <tr>
       <td>Credential Id Attribute</td>
-      <td>The local attribute name to retrieve the credential ID attribute from the journey state.
-</td>
+      <td>The local attribute name to retrieve the credential ID attribute from the journey state.</td>
     </tr>
-     <tr>
+    <tr>
       <td>Attribute map</td>
       <td>The Key - Value mapping used for associating journey state attributes to
 credentials. The `Key` is the PingOne credential attribute, and the `Value` is the
 corresponding journey state attribute.</td>
     </tr>
-
   </tbody>
 </table>
 
@@ -76,7 +73,6 @@ corresponding journey state attribute.</td>
 `Success`
 All configured checks passed.
 
-
 `Failure`
 There was an error during the Update process
 
@@ -87,4 +83,4 @@ appropriately.
 
 If the API call to PingOne Credentials fails, the following exception will be logged:
 
-* Error: PingOne Credentials Update a User Credential - <Status Code> - <Response Body> 
+* Error: PingOne Credentials Update a User Credential - `Status Code` - `Response Body` 

@@ -49,40 +49,35 @@ If `Custom Requested Credentials` is selected, this node retrieves `requestedCre
       <td>Marketplace Service to integrate with PingOne Services
       </td>
     </tr>
-  <tr>
-    <td>Credential Type</td>
-    <td>Type of credential to verify. Must be the name of a PingOne credential type issued by the credential issuer.
-</td>
-  </tr>
-     <tr>
+    <tr>
+      <td>Credential Type</td>
+      <td>Type of credential to verify. Must be the name of a PingOne credential type issued by the credential issuer.</td>
+    </tr>
+    <tr>
       <td>Disclosure Attribute Keys</td>
-      <td>Attribute key names for selective disclosure to return from the credential.
-</td>
+      <td>Attribute key names for selective disclosure to return from the credential.</td>
     </tr>
-     <tr>
+    <tr>
       <td>Digital Wallet Application ID</td>
-      <td>Digital Wallet Application ID from PingOne Credentials required for Push delivery method.
-</td>
+      <td>Digital Wallet Application ID from PingOne Credentials required for Push delivery method.</td>
     </tr>
-     <tr>
+    <tr>
       <td>Verification URL Delivery Method</td>
       <td>The delivery method for the Verification URL. Choose from: <br>
 
 - QR Code
-- Push
-
-</td>
+- Push</td>
     </tr>
-     <tr>
+    <tr>
       <td>Allow user to choose the URL delivery method</td>
       <td>If enabled, prompt the user to select the URL delivery method.</td>
     </tr>
-     <tr>
+    <tr>
       <td>Delivery method message</td>
       <td>The message to display to the user allowing them to choose the delivery method to \
   receive the credential verification URL (QRCODE, PUSH).</td>
     </tr>
-     <tr>
+    <tr>
       <td>QR code message</td>
       <td>The message with instructions to scan the QR code to begin the credential verification process.</td>
     </tr>
@@ -94,25 +89,21 @@ If `Custom Requested Credentials` is selected, this node retrieves `requestedCre
       <td>Push Message</td>
       <td>A custom message that the end-user will see when requesting the credential.</td>
     </tr>
-     <tr>
+    <tr>
       <td>Store Credential Verification Response</td>
       <td>Store the list of verified data submitted by the user in the shared state under a key
   named <code>pingOneCredentialVerification</code>.<br><br>
-  <em>Note</em>: The key is empty if the node is unable to retrieve the wallet pairing data from PingOne.
-</td>
+  <em>Note</em>: The key is empty if the node is unable to retrieve the wallet pairing data from PingOne.</td>
     </tr>
     <tr>
       <td>Verification Timeout</td>
       <td>The period of time (in seconds) to wait for a response to the Verification request. If no
-  response is received during this time the node times out and the verification process fails.
-      </td>
+  response is received during this time the node times out and the verification process fails.</td>
     </tr>
     <tr>
-<td>Custom Requested Credentials</td>
-<td>If selected a custom requested credentials payload should be retrieved from the 
-  requestedCredentials attribute in shared state.
-</td>
-</tr>
+      <td>Custom Requested Credentials</td>
+      <td>If selected a custom requested credentials payload should be retrieved from the requestedCredentials attribute in shared state</td>
+    </tr>
   </tbody>
 </table>
 
@@ -140,6 +131,6 @@ appropriately.
 
 If any of the API calls to PingOne Credentials fail, the following exceptions will be logged:
 
-* Error: PingOne Credentials Create Verification session - <Status Code> - <Response Body> 
-* Error: PingOne Credentials Create Push Verification session - <Status Code> - <Response Body>
-* Error: PingOne Credentials Read a Verification Session - <Status Code> - <Response Body> 
+* Error: PingOne Credentials Create Verification session - `Status Code` - `Response Body`
+* Error: PingOne Credentials Create Push Verification session - `Status Code` - `Response Body`
+* Error: PingOne Credentials Read a Verification Session - `Status Code` - `Response Body` 

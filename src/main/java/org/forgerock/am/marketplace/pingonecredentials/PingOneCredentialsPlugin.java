@@ -51,11 +51,11 @@ import com.google.common.collect.ImmutableMap;
  * @since AM 5.5.0
  */
 public class PingOneCredentialsPlugin extends AbstractNodeAmPlugin {
-	protected static final String currentVersion = "0.1.1";
-	protected static final String logAppender = "[Version: " + currentVersion + "][Marketplace]";
+	protected static final String CURRENT_VERSION = "1.0.0";
+	protected static final String LOG_APPENDER = "[Version: " + CURRENT_VERSION + "][Marketplace]";
 	private static final Logger logger = LoggerFactory.getLogger(PingOneCredentialsPlugin.class);
-	private final String loggerPrefix = "[PingOneCredentialsPlugin]" + PingOneCredentialsPlugin.logAppender;
-	
+	private final String loggerPrefix = "[PingOneCredentialsPlugin]" + PingOneCredentialsPlugin.LOG_APPENDER;
+
     /** 
      * Specify the Map of list of node classes that the plugin is providing. These will then be installed and
      *  registered at the appropriate times in plugin lifecycle.
@@ -65,15 +65,25 @@ public class PingOneCredentialsPlugin extends AbstractNodeAmPlugin {
 	@Override
 	protected Map<String, Iterable<? extends Class<? extends Node>>> getNodesByVersion() {
 		return new ImmutableMap.Builder<String, Iterable<? extends Class<? extends Node>>>()
-                .put(currentVersion, asList(
-	                                    PingOneCredentialsPairWallet.class,
-	                                    PingOneCredentialsIssue.class,
-                						PingOneCredentialsVerification.class,
-	                                    PingOneCredentialsFindWallets.class,
-	                                    PingOneCredentialsRemoveWallet.class,
-	                                    PingOneCredentialsUpdate.class,
-	                                    PingOneCredentialsRevoke.class))
+                .put("1.0.0", asList(PingOneCredentialsPairWallet.class,
+                                    PingOneCredentialsIssue.class,
+                                    PingOneCredentialsVerification.class,
+                                    PingOneCredentialsFindWallets.class,
+                                    PingOneCredentialsRemoveWallet.class,
+                                    PingOneCredentialsUpdate.class,
+                                    PingOneCredentialsRevoke.class))
                 .build();
+	}
+
+	/**
+	 * The plugin version. This must be in semver (semantic version) format.
+	 *
+	 * @return The version of the plugin.
+	 * @see <a href="https://www.osgi.org/wp-content/uploads/SemanticVersioning.pdf">Semantic Versioning</a>
+	 */
+	@Override
+	public String getPluginVersion() {
+		return PingOneCredentialsPlugin.CURRENT_VERSION;
 	}
 
     /** 
@@ -82,10 +92,10 @@ public class PingOneCredentialsPlugin extends AbstractNodeAmPlugin {
      * 
      * No need to implement this unless your AuthNode has specific requirements on install.
      */
-	@Override
+	/*@Override
 	public void onInstall() throws PluginException {
 		super.onInstall();
-	}
+	}*/
 
     /** 
      * Handle plugin startup. This method will be called every time AM starts, after {@link #onInstall()},
@@ -95,10 +105,10 @@ public class PingOneCredentialsPlugin extends AbstractNodeAmPlugin {
      *
      * @param startupType The type of startup that is taking place.
      */
-	@Override
+	/*@Override
 	public void onStartup() throws PluginException {
 		super.onStartup();
-	}
+	}*/
 
     /** 
      * This method will be called when the version returned by {@link #getPluginVersion()} is higher than the
@@ -110,8 +120,8 @@ public class PingOneCredentialsPlugin extends AbstractNodeAmPlugin {
      */	
 	@Override
 	public void upgrade(String fromVersion) throws PluginException {
-		logger.error(loggerPrefix + "fromVersion = " + fromVersion);
-		logger.error(loggerPrefix + "currentVersion = " + currentVersion);
+		logger.error("{} fromVersion = {}", loggerPrefix, fromVersion);
+		logger.error("{} currentVersion = {}", loggerPrefix, CURRENT_VERSION);
 		try {
 			pluginTools.upgradeAuthNode(PingOneCredentialsPairWallet.class);
 			pluginTools.upgradeAuthNode(PingOneCredentialsIssue.class);
@@ -126,14 +136,5 @@ public class PingOneCredentialsPlugin extends AbstractNodeAmPlugin {
 		super.upgrade(fromVersion);
 	}
 
-    /** 
-     * The plugin version. This must be in semver (semantic version) format.
-     *
-     * @return The version of the plugin.
-     * @see <a href="https://www.osgi.org/wp-content/uploads/SemanticVersioning.pdf">Semantic Versioning</a>
-     */
-	@Override
-	public String getPluginVersion() {
-		return PingOneCredentialsPlugin.currentVersion;
-	}
+
 }

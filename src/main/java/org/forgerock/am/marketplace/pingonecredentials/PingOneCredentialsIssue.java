@@ -22,13 +22,16 @@ import org.forgerock.json.JsonValue;
 import org.forgerock.oauth2.core.AccessToken;
 import org.forgerock.openam.annotations.sm.Attribute;
 import org.forgerock.openam.auth.node.api.Action;
+import org.forgerock.openam.auth.node.api.InputState;
 import org.forgerock.openam.auth.node.api.Node;
 import org.forgerock.openam.auth.node.api.NodeState;
 import org.forgerock.openam.auth.node.api.OutcomeProvider;
+import org.forgerock.openam.auth.node.api.OutputState;
+import org.forgerock.openam.auth.node.api.StaticOutcomeProvider;
 import org.forgerock.openam.auth.node.api.TreeContext;
-import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfig;
-import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfigChoiceValues;
-import org.forgerock.openam.auth.service.marketplace.TNTPPingOneUtility;
+import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
+import org.forgerock.openam.integration.pingone.PingOneWorkerService;
+import org.forgerock.openam.integration.pingone.annotations.PingOneWorker;
 import org.forgerock.openam.core.realms.Realm;
 import org.forgerock.util.i18n.PreferredLocales;
 import org.slf4j.Logger;
@@ -42,22 +45,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 
-
 @Node.Metadata(
     outcomeProvider = PingOneCredentialsIssue.IssueOutcomeProvider.class,
     configClass = PingOneCredentialsIssue.Config.class,
-    tags = {"marketplace", "trustnetwork"})
+    tags = {"marketplace", "trustnetwork", "pingone"})
 public class PingOneCredentialsIssue implements Node {
 
     private final Config config;
     private final Realm realm;
-    private final TNTPPingOneConfig tntpPingOneConfig;
+    private final PingOneWorkerService pingOneWorkerService;
 
     private final Logger logger = LoggerFactory.getLogger(PingOneCredentialsIssue.class);
-    private final String loggerPrefix = "[PingOne Credentials Issue Node]" + PingOneCredentialsPlugin.logAppender;
+    private static final String loggerPrefix = "[PingOne Credentials Issue Node]" + PingOneCredentialsPlugin.LOG_APPENDER;
 
     public static final String BUNDLE = PingOneCredentialsIssue.class.getName();
-    private final Helper client;
+    private final PingOneCredentialsService client;
 
 
     /**
@@ -66,12 +68,13 @@ public class PingOneCredentialsIssue implements Node {
     public interface Config {
 
         /**
-         * The Configured service
+         * Reference to the PingOne Worker App.
+         *
+         * @return The PingOne Worker App.
          */
-        @Attribute(order = 100, choiceValuesClass = TNTPPingOneConfigChoiceValues.class)
-        default String tntpPingOneConfigName() {
-            return TNTPPingOneConfigChoiceValues.createTNTPPingOneConfigName("Global Default");
-        }
+        @Attribute(order = 100, requiredValue = true)
+        @PingOneWorker
+        PingOneWorkerConfig.Worker pingOneWorker();
 
         @Attribute(order = 200)
         default String pingOneUserIdAttribute() {
@@ -84,9 +87,7 @@ public class PingOneCredentialsIssue implements Node {
         }
 
         @Attribute(order = 400)
-        default Map<String, String> attributes() {
-            return Collections.emptyMap();
-        }
+        Map<String, String> attributes();
     }
 
     /**
@@ -97,10 +98,11 @@ public class PingOneCredentialsIssue implements Node {
      * @param realm  The realm the node is in.
      */
     @Inject
-    public PingOneCredentialsIssue(@Assisted Config config, @Assisted Realm realm, Helper client) {
+    PingOneCredentialsIssue(@Assisted Config config, @Assisted Realm realm,
+                                   PingOneWorkerService pingOneWorkerService, PingOneCredentialsService client) {
         this.config = config;
         this.realm = realm;
-        this.tntpPingOneConfig = TNTPPingOneConfigChoiceValues.getTNTPPingOneConfig(config.tntpPingOneConfigName());
+        this.pingOneWorkerService = pingOneWorkerService;
         this.client = client;
     }
 
@@ -128,26 +130,24 @@ public class PingOneCredentialsIssue implements Node {
             }
 
             if (StringUtils.isBlank(pingOneUserId)) {
-                logger.error("Expected PingOne User ID to be set in sharedState.");
+                logger.warn("Expected PingOne User ID to be set in sharedState.");
                 return Action.goTo(FAILURE_OUTCOME_ID).build();
             }
 
             // Get PingOne Access Token
-            TNTPPingOneUtility pingOneUtility = TNTPPingOneUtility.getInstance();
-            AccessToken accessToken = pingOneUtility.getAccessToken(realm, tntpPingOneConfig);
+            PingOneWorkerConfig.Worker worker = config.pingOneWorker();
+            AccessToken accessToken = pingOneWorkerService.getAccessToken(realm, worker);
 
             JsonValue response = client.credentialIssueRequest(accessToken,
-                                                               tntpPingOneConfig.environmentRegion().getDomainSuffix(),
-                                                               tntpPingOneConfig.environmentId(),
+                                                               worker,
                                                                pingOneUserId,
                                                                config.credentialTypeId(),
-                                                               getAttributesArray(nodeState));
+                                                               getAttributes(nodeState));
 
             nodeState.putShared(PINGONE_CREDENTIAL_ID_KEY, response.get(RESPONSE_ID).asString());
 
             return Action.goTo(SUCCESS_OUTCOME_ID).build();
-        }
-        catch (Exception ex) {
+        } catch (Exception ex) {
             String stackTrace = org.apache.commons.lang.exception.ExceptionUtils.getStackTrace(ex);
             logger.error(loggerPrefix + "Exception occurred: ", ex);
             context.getStateFor(this).putTransient(loggerPrefix + "Exception", ex.getMessage());
@@ -156,7 +156,7 @@ public class PingOneCredentialsIssue implements Node {
         }
     }
 
-    private JsonValue getAttributesArray(NodeState sharedState) {
+    private JsonValue getAttributes(NodeState sharedState) {
         JsonValue attributes = new JsonValue(new LinkedHashMap<String, Object>(1));
 
         config.attributes().forEach(
@@ -169,9 +169,32 @@ public class PingOneCredentialsIssue implements Node {
         return attributes;
     }
 
-    public static class IssueOutcomeProvider implements OutcomeProvider {
+    @Override
+    public InputState[] getInputs() {
+
+        List<InputState> inputs = new ArrayList<>();
+
+        inputs.add(new InputState(config.pingOneUserIdAttribute(), false));
+        inputs.add(new InputState(OBJECT_ATTRIBUTES, false));
+
+        config.attributes().forEach(
+            (k, v) -> {
+                inputs.add(new InputState(v, false));
+            });
+
+        return inputs.toArray(new InputState[]{});
+    }
+
+    @Override
+    public OutputState[] getOutputs() {
+        return new OutputState[]{
+            new OutputState(PINGONE_CREDENTIAL_ID_KEY)
+        };
+    }
+
+    public static class IssueOutcomeProvider implements StaticOutcomeProvider {
         @Override
-        public List<Outcome> getOutcomes(PreferredLocales locales, JsonValue nodeAttributes) {
+        public List<Outcome> getOutcomes(PreferredLocales locales) {
             ResourceBundle bundle = locales.getBundleInPreferredLocale(PingOneCredentialsIssue.BUNDLE,
                                                                        OutcomeProvider.class.getClassLoader());
             List<Outcome> results = new ArrayList<>();

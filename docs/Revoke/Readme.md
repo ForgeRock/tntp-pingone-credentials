@@ -48,15 +48,12 @@ This node retrieves from the journey state:
   <tbody>
     <tr>
       <td>PingOne Service</td>
-      <td>Marketplace Service to integrate with PingOne Services
-      </td>
+      <td>Marketplace Service to integrate with PingOne Services</td>
     </tr>
-     <tr>
+    <tr>
       <td>Credential Id Attribute</td>
-      <td>Local attribute name to retrieve the Credential Id Attribute from the journey state.
-</td>
+      <td>Local attribute name to retrieve the Credential Id Attribute from the journey state.</td>
     </tr>
-
   </tbody>
 </table>
 
@@ -82,5 +79,5 @@ appropriately.
 
 If the API call to PingOne Credentials fails, the following exception will be logged:
 
-* Error: PingOne Credentials Revoke a User's Credential - <Status Code> - <Response Body> 
+* Error: PingOne Credentials Revoke a User's Credential - `Status Code` - `Response Body` 
 
