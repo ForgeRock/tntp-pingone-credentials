@@ -9,7 +9,7 @@
 package org.forgerock.am.marketplace.pingonecredentials;
 
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.EXPIRED;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.FAILURE_OUTCOME_ID;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.ERROR_OUTCOME_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.INITIAL;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.OBJECT_ATTRIBUTES;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_APPLICATION_INSTANCE_ID_KEY;
@@ -30,6 +30,7 @@ import static org.forgerock.am.marketplace.pingonecredentials.Constants.VERIFICA
 import static org.forgerock.openam.auth.node.api.Action.send;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.VerificationDeliveryMethod;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -73,7 +74,7 @@ import org.slf4j.LoggerFactory;
 import com.google.inject.assistedinject.Assisted;
 
 @Node.Metadata(
-		outcomeProvider = PingOneCredentialsVerification.AuthenticationOutcomeProvider.class,
+		outcomeProvider = PingOneCredentialsVerification.VerificationOutcomeProvider.class,
 		configClass = PingOneCredentialsVerification.Config.class,
 		tags = {"marketplace", "trustnetwork", "pingone"})
 public class PingOneCredentialsVerification implements Node {
@@ -85,7 +86,7 @@ public class PingOneCredentialsVerification implements Node {
 	public static final String HIDDEN_CALLBACK_ID = "pingOneCredentialVerificationUri";
 
 	private final Logger logger = LoggerFactory.getLogger(PingOneCredentialsVerification.class);
-	private static final String loggerPrefix = "[PingOne Credentials Verification Node]" + PingOneCredentialsPlugin.LOG_APPENDER;
+	private static final String LOGGER_PREFIX = "[PingOne Credentials Verification Node]" + PingOneCredentialsPlugin.LOG_APPENDER;
 
 	public static final String BUNDLE = PingOneCredentialsVerification.class.getName();
 
@@ -117,9 +118,19 @@ public class PingOneCredentialsVerification implements Node {
 		@PingOneWorker
 		PingOneWorkerConfig.Worker pingOneWorker();
 
-		@Attribute(order = 200)
-		default String credentialType() { return ""; }
+		/**
+		 * The Credential Type of the Credential (not the ID)
+		 *
+		 * @return The Credential Type as a String
+		 */
+		@Attribute(order = 200, requiredValue = true)
+		String credentialType();
 
+		/**
+		 * The list of Credential attributes to disclose during the presentation
+		 *
+		 * @return List of Credential attributes as a List of Strings
+		 */
 		@Attribute(order = 300)
 		List<String> attributeKeys();
 
@@ -128,14 +139,24 @@ public class PingOneCredentialsVerification implements Node {
 		 *
 		 * @return The type of delivery method.
 		 */
-		@Attribute(order = 400)
+		@Attribute(order = 400, requiredValue = true)
 		default VerificationDeliveryMethod deliveryMethod() {
 			return VerificationDeliveryMethod.QRCODE;
 		}
 
+		/**
+		 * The PingOne Digital Wallet Application ID
+		 *
+		 * @return The Digital Wallet Application ID as a String
+		 */
 		@Attribute(order = 500)
-		default String digitalWalletApplicationId() {return ""; }
+		String digitalWalletApplicationId();
 
+		/**
+		 * The shared state attribute containing the PingOne Application Instance ID
+		 *
+		 * @return The Application Instance ID as a String
+		 */
 		@Attribute(order = 600)
 		default String applicationInstanceAttribute() {
 			return PINGONE_APPLICATION_INSTANCE_ID_KEY;
@@ -145,7 +166,7 @@ public class PingOneCredentialsVerification implements Node {
 		 * Allow user to choose the URL delivery method.
 		 * @return true if user will be prompted for delivery method, false otherwise.
 		 */
-		@Attribute(order = 700)
+		@Attribute(order = 700, requiredValue = true)
 		default boolean allowDeliveryMethodSelection() {
 			return false;
 		}
@@ -171,8 +192,8 @@ public class PingOneCredentialsVerification implements Node {
 		 * @return The timeout in seconds.
 		 */
 		@Attribute(order = 1000)
-		default int timeout() {
-			return DEFAULT_TIMEOUT;
+		default Duration timeout() {
+			return Duration.ofSeconds(DEFAULT_TIMEOUT);
 		}
 
 		/**
@@ -193,7 +214,7 @@ public class PingOneCredentialsVerification implements Node {
 		 * Store the create verification response in the shared state.
 		 * @return true if the create verification response should be stored, false otherwise.
 		 */
-		@Attribute(order = 1300)
+		@Attribute(order = 1300, requiredValue = true)
 		default boolean storeVerificationResponse() {
 			return true;
 		}
@@ -202,17 +223,26 @@ public class PingOneCredentialsVerification implements Node {
 		 * Toggle if a custom requested credentials payload should be used
 		 * @return true if the create verification response should be stored, false otherwise.
 		 */
-		@Attribute(order = 1400)
+		@Attribute(order = 1400, requiredValue = true)
 		default boolean customCredentialsPayload() {
 			return false;
 		}
 
 	}
 
+	/**
+	 * The PingOne Credentials Pair Wallet node constructor.
+	 *
+	 * @param config               the node configuration.
+	 * @param realm                the realm.
+	 * @param pingOneWorkerService the {@link PingOneWorkerService} instance.
+	 * @param client               the {@link PingOneCredentialsService} instance.
+	 * @param localizationHelper   the {@link LocalizationHelper} instance.
+	 */
 	@Inject
 	PingOneCredentialsVerification(@Assisted Config config, @Assisted Realm realm,
-	                                      PingOneWorkerService pingOneWorkerService, PingOneCredentialsService client,
-	                                      LocalizationHelper localizationHelper) {
+	                               PingOneWorkerService pingOneWorkerService, PingOneCredentialsService client,
+	                               LocalizationHelper localizationHelper) {
 		this.config = config;
 		this.realm = realm;
 		this.pingOneWorkerService = pingOneWorkerService;
@@ -223,7 +253,7 @@ public class PingOneCredentialsVerification implements Node {
 	@Override
 	public Action process(TreeContext context) {
 		try {
-			logger.debug(loggerPrefix + "Started");
+			logger.debug("{} Started", LOGGER_PREFIX);
 
 			NodeState nodeState = context.getStateFor(this);
 
@@ -247,7 +277,7 @@ public class PingOneCredentialsVerification implements Node {
 			if (pollingWaitCallback.isPresent()) {
 				// Transaction already started
 				if (!nodeState.isDefined(PINGONE_VERIFICATION_SESSION_KEY)) {
-					return buildAction(FAILURE_OUTCOME_ID, context);
+					return buildAction(ERROR_OUTCOME_ID, context);
 				}
 				return getActionFromVerificationStatus(context, accessToken, worker);
 			} else {
@@ -263,10 +293,13 @@ public class PingOneCredentialsVerification implements Node {
 			}
 		} catch (Exception ex) {
 			String stackTrace = org.apache.commons.lang.exception.ExceptionUtils.getStackTrace(ex);
-			logger.error(loggerPrefix + "Exception occurred: ", ex);
-			context.getStateFor(this).putTransient(loggerPrefix + "Exception", ex.getMessage());
-			context.getStateFor(this).putTransient(loggerPrefix + "StackTrace", stackTrace);
-			return Action.goTo(FAILURE_OUTCOME_ID).build();
+			logger.error(LOGGER_PREFIX + "Exception occurred: ", ex);
+			NodeState nodeState = context.getStateFor(this);
+
+			nodeState.putTransient(LOGGER_PREFIX + "Exception", ex.getMessage());
+			nodeState.putTransient(LOGGER_PREFIX + "StackTrace", stackTrace);
+
+			return buildAction(ERROR_OUTCOME_ID, context);
 		}
 	}
 
@@ -298,7 +331,7 @@ public class PingOneCredentialsVerification implements Node {
 		switch (status) {
 			case INITIAL:
 				List<Callback> callbacks = getCallbacksForDeliveryMethod(context, verificationDeliveryMethod, qrUrl);
-				return waitTransactionCompletion(nodeState, callbacks, config.timeout()).build();
+				return waitTransactionCompletion(nodeState, callbacks).build();
 			case VERIFICATION_SUCCESSFUL:
 				String applicationInstanceId = response.get(RESPONSE_APPLICATION_INSTANCE).get(RESPONSE_ID).asString();
 
@@ -310,7 +343,7 @@ public class PingOneCredentialsVerification implements Node {
 				}
 				return buildAction(SUCCESS_OUTCOME_ID, context);
 			case EXPIRED:
-				return buildAction(FAILURE_OUTCOME_ID, context);
+				return buildAction(ERROR_OUTCOME_ID, context);
 			default:
 				throw new IllegalStateException("Unexpected status returned from PingOne Credential Verification: "
 				                                + status);
@@ -325,7 +358,7 @@ public class PingOneCredentialsVerification implements Node {
 
 		String qrUrl = ""; // Value will not be used if delivery is not QRCODE
 
-		if(deliveryMethod.equals(Constants.VerificationDeliveryMethod.QRCODE)) {
+		if(Constants.VerificationDeliveryMethod.QRCODE.equals(deliveryMethod)) {
 			NodeState nodeState = context.getStateFor(this);
 
 			JsonValue customCredentialsPayload = null;
@@ -349,7 +382,7 @@ public class PingOneCredentialsVerification implements Node {
 			// Store session ID in shared state
 			nodeState.putShared(PINGONE_VERIFICATION_SESSION_KEY, sessionId);
 			nodeState.putShared(PINGONE_VERIFICATION_TIMEOUT_KEY, TRANSACTION_POLL_INTERVAL);
-		} else if(deliveryMethod.equals(Constants.VerificationDeliveryMethod.PUSH)) {
+		} else if(Constants.VerificationDeliveryMethod.PUSH.equals(deliveryMethod)) {
 
 			NodeState nodeState = context.getStateFor(this);
 
@@ -360,7 +393,7 @@ public class PingOneCredentialsVerification implements Node {
 
 			if (StringUtils.isBlank(applicationInstanceId)) {
 				logger.error("Expected applicationInstanceId to be set in sharedState.");
-				return Action.goTo(FAILURE_OUTCOME_ID).build();
+				return Action.goTo(ERROR_OUTCOME_ID).build();
 			}
 
 			JsonValue customCredentialsPayload = null;
@@ -374,7 +407,7 @@ public class PingOneCredentialsVerification implements Node {
 			                                                          message,
 			                                                          credentialType,
 			                                                          attributeKeys,
-			                                                          config.applicationInstanceAttribute(),
+			                                                          applicationInstanceId,
 			                                                          config.digitalWalletApplicationId(),
 			                                                          customCredentialsPayload);
 
@@ -392,7 +425,7 @@ public class PingOneCredentialsVerification implements Node {
 		return send(callbacks).build();
 	}
 
-	private List<Callback> getCallbacksForDeliveryMethod(TreeContext context, Constants.VerificationDeliveryMethod deliveryMethod,
+	private List<Callback> getCallbacksForDeliveryMethod(TreeContext context, VerificationDeliveryMethod deliveryMethod,
 	                                                     String url) {
 		String waitingMessage = getWaitingMessage(context);
 
@@ -401,7 +434,7 @@ public class PingOneCredentialsVerification implements Node {
 		                                              .withMessage(waitingMessage)
 		                                              .build();
 
-		if (deliveryMethod.equals(VerificationDeliveryMethod.QRCODE)) {
+		if (VerificationDeliveryMethod.QRCODE.equals(deliveryMethod)) {
 			Callback scanTextOutputCallback = createLocalizedTextCallback(context, this.getClass(),
 			                                                              config.scanQRCodeMessage(), SCAN_QR_CODE_MSG_KEY);
 
@@ -441,8 +474,8 @@ public class PingOneCredentialsVerification implements Node {
 		                                              DEFAULT_PUSH_MESSAGE_KEY);
 	}
 
-	private Action.ActionBuilder waitTransactionCompletion(NodeState nodeState, List<Callback> callbacks, int timeout) {
-		int timeOutInMs = timeout * 1000;
+	private Action.ActionBuilder waitTransactionCompletion(NodeState nodeState, List<Callback> callbacks) {
+		long timeOutInMs = config.timeout().getSeconds() * 1000;
 		int timeElapsed = nodeState.get(PINGONE_VERIFICATION_TIMEOUT_KEY).asInteger();
 
 		if (timeElapsed >= timeOutInMs) {
@@ -500,22 +533,21 @@ public class PingOneCredentialsVerification implements Node {
 
 	@Override
 	public OutputState[] getOutputs() {
-		return new OutputState[]{
-			new OutputState(PINGONE_VERIFICATION_SESSION_KEY),
-			new OutputState(PINGONE_VERIFICATION_DELIVERY_METHOD_KEY),
-			new OutputState(PINGONE_VERIFICATION_TIMEOUT_KEY),
-			new OutputState(PINGONE_APPLICATION_INSTANCE_ID_KEY),
+		return new OutputState[] {
+				new OutputState(PINGONE_VERIFICATION_SESSION_KEY),
+				new OutputState(PINGONE_VERIFICATION_DELIVERY_METHOD_KEY),
+				new OutputState(PINGONE_VERIFICATION_TIMEOUT_KEY)
 			};
 	}
 
-	public static class AuthenticationOutcomeProvider implements StaticOutcomeProvider {
+	public static class VerificationOutcomeProvider implements StaticOutcomeProvider {
 		@Override
 		public List<Outcome> getOutcomes(PreferredLocales locales) {
 			ResourceBundle bundle = locales.getBundleInPreferredLocale(PingOneCredentialsVerification.BUNDLE,
 			                                                           OutcomeProvider.class.getClassLoader());
 			List<Outcome> results = new ArrayList<>();
 			results.add(new Outcome(SUCCESS_OUTCOME_ID, bundle.getString("successOutcome")));
-			results.add(new Outcome(FAILURE_OUTCOME_ID, bundle.getString("failureOutcome")));
+			results.add(new Outcome(ERROR_OUTCOME_ID, bundle.getString("errorOutcome")));
 			results.add(new Outcome(TIMEOUT_OUTCOME_ID, bundle.getString("timeoutOutcome")));
 			return Collections.unmodifiableList(results);
 		}

@@ -8,7 +8,7 @@
 
 package org.forgerock.am.marketplace.pingonecredentials;
 
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.FAILURE_OUTCOME_ID;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.ERROR_OUTCOME_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.NOT_FOUND_OUTCOME_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.OBJECT_ATTRIBUTES;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_ID_KEY;
@@ -18,7 +18,6 @@ import static org.forgerock.am.marketplace.pingonecredentials.Constants.RevokeRe
 
 import com.google.inject.assistedinject.Assisted;
 import org.apache.commons.lang.StringUtils;
-import org.forgerock.json.JsonValue;
 import org.forgerock.oauth2.core.AccessToken;
 import org.forgerock.openam.annotations.sm.Attribute;
 import org.forgerock.openam.auth.node.api.Action;
@@ -43,7 +42,7 @@ import java.util.List;
 import java.util.ResourceBundle;
 
 @Node.Metadata(
-    outcomeProvider = PingOneCredentialsRevoke.IssueOutcomeProvider.class,
+    outcomeProvider = PingOneCredentialsRevoke.RevokeOutcomeProvider.class,
     configClass = PingOneCredentialsRevoke.Config.class,
     tags = {"marketplace", "trustnetwork", "pingone"})
 public class PingOneCredentialsRevoke implements Node {
@@ -53,7 +52,7 @@ public class PingOneCredentialsRevoke implements Node {
     private final PingOneWorkerService pingOneWorkerService;
 
     private final Logger logger = LoggerFactory.getLogger(PingOneCredentialsRevoke.class);
-    private static final String loggerPrefix = "[PingOne Credentials Revoke Node]" + PingOneCredentialsPlugin.LOG_APPENDER;
+    private static final String LOGGER_PREFIX = "[PingOne Credentials Revoke Node]" + PingOneCredentialsPlugin.LOG_APPENDER;
 
     public static final String BUNDLE = PingOneCredentialsRevoke.class.getName();
     private final PingOneCredentialsService client;
@@ -73,28 +72,39 @@ public class PingOneCredentialsRevoke implements Node {
         @PingOneWorker
         PingOneWorkerConfig.Worker pingOneWorker();
 
-        @Attribute(order = 200)
+        /**
+         * The shared state attribute containing the PingOne User ID
+         *
+         * @return The PingOne User ID shared state attribute.
+         */
+        @Attribute(order = 200, requiredValue = true)
         default String pingOneUserIdAttribute() {
             return PINGONE_USER_ID_KEY;
         }
 
-        @Attribute(order = 300)
+        /**
+         * The Credential ID of the Credential
+         *
+         * @return The Credential ID as a String
+         */
+        @Attribute(order = 300, requiredValue = true)
         default String credentialId() {
             return PINGONE_CREDENTIAL_ID_KEY;
         }
-
     }
 
     /**
-     * Create the node using Guice injection. Just-in-time bindings can be used to
-     * obtain instances of other classes from the plugin.
+     * The PingOne Credentials Revoke node constructor.
      *
-     * @param config The service config.
-     * @param realm  The realm the node is in.
+     *
+     * @param config               the node configuration.
+     * @param realm                the realm.
+     * @param pingOneWorkerService the {@link PingOneWorkerService} instance.
+     * @param client               the {@link PingOneCredentialsService} instance.
      */
     @Inject
     PingOneCredentialsRevoke(@Assisted Config config, @Assisted Realm realm,
-                                    PingOneWorkerService pingOneWorkerService,  PingOneCredentialsService client) {
+                             PingOneWorkerService pingOneWorkerService,  PingOneCredentialsService client) {
         this.config = config;
         this.realm = realm;
         this.pingOneWorkerService = pingOneWorkerService;
@@ -104,29 +114,17 @@ public class PingOneCredentialsRevoke implements Node {
     @Override
     public Action process(TreeContext context) {
         try {
-            logger.debug(loggerPrefix + "Started");
+            logger.debug("{} Started", LOGGER_PREFIX);
 
             NodeState nodeState = context.getStateFor(this);
 
-            // Check if PingOne User ID attribute is set in sharedState
-            String pingOneUserId = nodeState.isDefined(config.pingOneUserIdAttribute())
-                                   ? nodeState.get(config.pingOneUserIdAttribute()).asString()
-                                   : null;
-
-            // Check if PingOne User ID attribute is in objectAttributes
-            if (StringUtils.isBlank(pingOneUserId)) {
-                if(nodeState.isDefined(OBJECT_ATTRIBUTES)) {
-                    JsonValue objectAttributes = nodeState.get(OBJECT_ATTRIBUTES);
-
-                    pingOneUserId = objectAttributes.isDefined(config.pingOneUserIdAttribute())
-                                    ? objectAttributes.get(config.pingOneUserIdAttribute()).asString()
-                                    : null;
-                }
-            }
-
-            if (StringUtils.isBlank(pingOneUserId)) {
+            // Check if PingOne User ID attribute is set in sharedState directly or objectAttributes
+            String pingOneUserId;
+            try {
+                pingOneUserId = new PingOneUserIdHelper().getPingOneUserId(nodeState, config.pingOneUserIdAttribute());
+            } catch (PingOneCredentialsException e) {
                 logger.warn("Expected PingOne User ID to be set in sharedState.");
-                return Action.goTo(FAILURE_OUTCOME_ID).build();
+                return Action.goTo(ERROR_OUTCOME_ID).build();
             }
 
             // Check if Credential ID attribute is set in sharedState
@@ -135,7 +133,7 @@ public class PingOneCredentialsRevoke implements Node {
                                    : null;
             if (StringUtils.isBlank(credentialId)) {
                 logger.warn("Expected credentialId to be set in sharedState.");
-                return Action.goTo(FAILURE_OUTCOME_ID).build();
+                return Action.goTo(ERROR_OUTCOME_ID).build();
             }
 
             // Get PingOne Access Token
@@ -144,7 +142,7 @@ public class PingOneCredentialsRevoke implements Node {
 
             if (accessToken == null) {
                 logger.error("Unable to get access token for PingOne Worker.");
-                return  Action.goTo(FAILURE_OUTCOME_ID).build();
+                return  Action.goTo(ERROR_OUTCOME_ID).build();
             }
 
             RevokeResult result = client.revokeCredentialRequest(accessToken,
@@ -159,10 +157,13 @@ public class PingOneCredentialsRevoke implements Node {
             }
         } catch (Exception ex) {
             String stackTrace = org.apache.commons.lang.exception.ExceptionUtils.getStackTrace(ex);
-            logger.error(loggerPrefix + "Exception occurred: ", ex);
-            context.getStateFor(this).putTransient(loggerPrefix + "Exception", ex.getMessage());
-            context.getStateFor(this).putTransient(loggerPrefix + "StackTrace", stackTrace);
-            return Action.goTo(FAILURE_OUTCOME_ID).build();
+            logger.error(LOGGER_PREFIX + "Exception occurred: ", ex);
+            NodeState nodeState = context.getStateFor(this);
+
+            nodeState.putTransient(LOGGER_PREFIX + "Exception", ex.getMessage());
+            nodeState.putTransient(LOGGER_PREFIX + "StackTrace", stackTrace);
+
+            return Action.goTo(ERROR_OUTCOME_ID).build();
         }
     }
 
@@ -175,7 +176,7 @@ public class PingOneCredentialsRevoke implements Node {
         };
     }
 
-    public static class IssueOutcomeProvider implements StaticOutcomeProvider {
+    public static class RevokeOutcomeProvider implements StaticOutcomeProvider {
         @Override
         public List<Outcome> getOutcomes(PreferredLocales locales) {
             ResourceBundle bundle = locales.getBundleInPreferredLocale(PingOneCredentialsRevoke.BUNDLE,
@@ -183,7 +184,7 @@ public class PingOneCredentialsRevoke implements Node {
             List<Outcome> results = new ArrayList<>();
             results.add(new Outcome(SUCCESS_OUTCOME_ID, bundle.getString("successOutcome")));
             results.add(new Outcome(NOT_FOUND_OUTCOME_ID, bundle.getString("notFoundOutcome")));
-            results.add(new Outcome(FAILURE_OUTCOME_ID, bundle.getString("failureOutcome")));
+            results.add(new Outcome(ERROR_OUTCOME_ID, bundle.getString("errorOutcome")));
             return Collections.unmodifiableList(results);
         }
     }

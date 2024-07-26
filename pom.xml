@@ -72,16 +72,6 @@
         </dependency>
         <dependency>
             <groupId>org.forgerock.am</groupId>
-            <artifactId>openam-guice-core</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.forgerock.am</groupId>
-            <artifactId>openam-core</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.forgerock.am</groupId>
             <artifactId>identity-api</artifactId>
             <scope>provided</scope>
         </dependency>

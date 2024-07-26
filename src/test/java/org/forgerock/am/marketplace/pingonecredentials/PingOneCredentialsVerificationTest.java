@@ -11,8 +11,10 @@ package org.forgerock.am.marketplace.pingonecredentials;
 import static freemarker.template.utility.Collections12.singletonList;
 import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.FAILURE_OUTCOME_ID;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.ERROR_OUTCOME_ID;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.OBJECT_ATTRIBUTES;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_APPLICATION_INSTANCE_ID_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_VERIFICATION_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_USER_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_DELIVERY_METHOD_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_SESSION_KEY;
@@ -22,18 +24,16 @@ import static org.forgerock.json.JsonValue.field;
 import static org.forgerock.json.JsonValue.json;
 import static org.forgerock.json.JsonValue.object;
 import static org.forgerock.openam.auth.node.api.SharedStateConstants.REALM;
-import static org.forgerock.openam.auth.node.api.SharedStateConstants.USERNAME;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.ConfirmationCallback;
 import javax.security.auth.callback.TextOutputCallback;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -42,6 +42,9 @@ import org.forgerock.json.JsonValue;
 import org.forgerock.oauth2.core.AccessToken;
 import org.forgerock.openam.auth.node.api.Action;
 import org.forgerock.openam.auth.node.api.ExternalRequestContext;
+import org.forgerock.openam.auth.node.api.InputState;
+import org.forgerock.openam.auth.node.api.OutcomeProvider;
+import org.forgerock.openam.auth.node.api.OutputState;
 import org.forgerock.openam.auth.node.api.TreeContext;
 import org.forgerock.openam.auth.nodes.helpers.LocalizationHelper;
 import org.forgerock.openam.authentication.callbacks.PollingWaitCallback;
@@ -50,6 +53,7 @@ import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
 import org.forgerock.openam.integration.pingone.PingOneWorkerException;
 import org.forgerock.openam.integration.pingone.PingOneWorkerService;
 import org.forgerock.openam.test.extensions.LoggerExtension;
+import org.forgerock.util.i18n.PreferredLocales;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -91,14 +95,12 @@ public class PingOneCredentialsVerificationTest {
     @Mock
     LocalizationHelper localizationHelper;
 
-    private static final String USER = "testUser";
-
     @BeforeEach
     public void setup() throws Exception {
         given(pingOneWorkerService.getWorker(any(), anyString())).willReturn(Optional.of(worker));
         given(pingOneWorkerService.getAccessToken(any(), any())).willReturn(accessToken);
 
-        node = spy(new PingOneCredentialsVerification(config, realm, pingOneWorkerService, client, localizationHelper));
+        node = new PingOneCredentialsVerification(config, realm, pingOneWorkerService, client, localizationHelper);
     }
 
     @Test
@@ -109,7 +111,6 @@ public class PingOneCredentialsVerificationTest {
             .willReturn("Select Delivery Method:");
 
         JsonValue sharedState = json(object(
-            field(USERNAME, USER),
             field(REALM, "/realm")));
 
         JsonValue transientState = json(object());
@@ -142,8 +143,6 @@ public class PingOneCredentialsVerificationTest {
 
         given(localizationHelper.getLocalizedMessage(any(), any(), any(), anyString()))
             .willReturn("Some localized text");
-
-
 
         JsonValue transientState = json(object());
 
@@ -181,13 +180,12 @@ public class PingOneCredentialsVerificationTest {
     public void testVerifyTransactionInitiatedButNodeTimesOut() throws Exception {
         // Given
         JsonValue sharedState = json(object(
-            field(USERNAME, USER),
             field(REALM, "/realm"),
             field(PINGONE_VERIFICATION_SESSION_KEY, "some-verification-session-id"),
             field(PINGONE_VERIFICATION_TIMEOUT_KEY, 30000),
             field(PINGONE_VERIFICATION_DELIVERY_METHOD_KEY, 0)));
 
-        given(config.timeout()).willReturn(30);
+        given(config.timeout()).willReturn(Duration.ofSeconds(30));
         given(config.allowDeliveryMethodSelection()).willReturn(true);
         given(localizationHelper.getLocalizedMessage(any(), any(), any(), anyString()))
             .willReturn("Some localized text");
@@ -211,7 +209,7 @@ public class PingOneCredentialsVerificationTest {
     @ParameterizedTest
     @CsvSource({
         "VERIFICATION_SUCCESSFUL,success",
-        "EXPIRED,failure",
+        "EXPIRED,error",
     })
     public void testReturnOutcomeForVerificationStatus(String status, String expectedOutcome) throws Exception {
         // Given
@@ -220,7 +218,7 @@ public class PingOneCredentialsVerificationTest {
             field(PINGONE_VERIFICATION_SESSION_KEY, "some-session-id"),
             field(PINGONE_VERIFICATION_TIMEOUT_KEY, 5000)));
 
-        given(config.timeout()).willReturn(120);
+        given(config.timeout()).willReturn(Duration.ofSeconds(120));
         given(config.deliveryMethod()).willReturn(Constants.VerificationDeliveryMethod.QRCODE);
         given(config.allowDeliveryMethodSelection()).willReturn(false);
 
@@ -241,12 +239,106 @@ public class PingOneCredentialsVerificationTest {
     }
 
     @Test
+    public void testGetInputs() {
+        given(config.digitalWalletApplicationId()).willReturn("some-digital-wallet-app-id");
+
+        InputState[] inputs = node.getInputs();
+
+        assertThat(inputs[0].name).isEqualTo(PINGONE_VERIFICATION_SESSION_KEY);
+        assertThat(inputs[0].required).isEqualTo(false);
+
+        assertThat(inputs[1].name).isEqualTo(PINGONE_VERIFICATION_DELIVERY_METHOD_KEY);
+        assertThat(inputs[1].required).isEqualTo(false);
+
+        assertThat(inputs[2].name).isEqualTo(PINGONE_VERIFICATION_TIMEOUT_KEY);
+        assertThat(inputs[2].required).isEqualTo(false);
+
+        assertThat(inputs[3].name).isEqualTo(OBJECT_ATTRIBUTES);
+        assertThat(inputs[3].required).isEqualTo(false);
+
+        assertThat(inputs[4].name).isEqualTo("some-digital-wallet-app-id");
+        assertThat(inputs[4].required).isEqualTo(false);
+
+        assertThat(inputs[5].name).isEqualTo(PINGONE_APPLICATION_INSTANCE_ID_KEY);
+        assertThat(inputs[5].required).isEqualTo(false);
+
+        assertThat(inputs[6].name).isEqualTo(PINGONE_CREDENTIAL_VERIFICATION_KEY);
+        assertThat(inputs[6].required).isEqualTo(false);
+    }
+
+    @Test
+    public void testGetOutputs() {
+        OutputState[] outputs = node.getOutputs();
+
+        assertThat(outputs[0].name).isEqualTo(PINGONE_VERIFICATION_SESSION_KEY);
+        assertThat(outputs[1].name).isEqualTo(PINGONE_VERIFICATION_DELIVERY_METHOD_KEY);
+        assertThat(outputs[2].name).isEqualTo(PINGONE_VERIFICATION_TIMEOUT_KEY);
+    }
+
+    @Test
+    public void testGetOutcomes() {
+        PingOneCredentialsVerification.VerificationOutcomeProvider outcomeProvider = new PingOneCredentialsVerification.VerificationOutcomeProvider();
+
+        PreferredLocales locales = new PreferredLocales();
+        List<OutcomeProvider.Outcome> outcomes = outcomeProvider.getOutcomes(locales);
+
+        assertThat(outcomes.get(0).id).isEqualTo("success");
+        assertThat(outcomes.get(0).displayName).isEqualTo("Success");
+
+        assertThat(outcomes.get(1).id).isEqualTo("error");
+        assertThat(outcomes.get(1).displayName).isEqualTo("Error");
+
+        assertThat(outcomes.get(2).id).isEqualTo("timeout");
+        assertThat(outcomes.get(2).displayName).isEqualTo("Time Out");
+    }
+
+    @Test
+    public void testExceptionThrowDuringProcessing() throws Exception {
+        // Given
+        JsonValue sharedState = json(object(
+            field(REALM, "/realm"),
+            field(PINGONE_USER_ID_KEY, "some-user-id")));
+        JsonValue transientState = json(object());
+
+        given(config.allowDeliveryMethodSelection()).willReturn(false);
+        given(config.deliveryMethod()).willReturn(Constants.VerificationDeliveryMethod.QRCODE);
+
+        when(client.createVerificationRequest(any(), any(), anyString(), anyString(), any(), any())).thenReturn(null);
+
+        // When
+        Action result = node.process(getContext(sharedState, transientState, emptyList()));
+
+        // Then
+        assertThat(result.outcome).isEqualTo(ERROR_OUTCOME_ID);
+    }
+
+    @Test
+    public void testErrorAccessTokenNull() throws Exception {
+        given(pingOneWorkerService.getAccessToken(any(), any())).willReturn(null);
+        given(config.allowDeliveryMethodSelection()).willReturn(false);
+        given(config.deliveryMethod()).willReturn(Constants.VerificationDeliveryMethod.QRCODE);
+
+        // Given
+        JsonValue sharedState = json(object(field(REALM, "/realm")));
+        JsonValue transientState = json(object());
+
+        // When
+        Action result = node.process(getContext(sharedState, transientState, emptyList()));
+
+        // Then
+        assertThat(result.outcome).isEqualTo(ERROR_OUTCOME_ID);
+    }
+
+    @Test
     public void testPingOneCommunicationFailed() throws Exception {
         // Given
         given(pingOneWorkerService.getAccessToken(any(), any())).willReturn(null);
         given(pingOneWorkerService.getAccessToken(realm, worker)).willThrow(new PingOneWorkerException(""));
+
+        given(config.allowDeliveryMethodSelection()).willReturn(false);
+        given(config.deliveryMethod()).willReturn(Constants.VerificationDeliveryMethod.QRCODE);
+
         JsonValue sharedState = json(object(
-            field(USERNAME, USER),
             field(REALM, "/realm"),
             field(PINGONE_USER_ID_KEY, "some-user-id")
                                            ));
@@ -256,7 +348,7 @@ public class PingOneCredentialsVerificationTest {
         Action result = node.process(getContext(sharedState, transientState, emptyList()));
 
         // Then
-        assertThat(result.outcome).isEqualTo(FAILURE_OUTCOME_ID);
+        assertThat(result.outcome).isEqualTo(ERROR_OUTCOME_ID);
     }
 
     private TreeContext getContext(JsonValue sharedState, JsonValue transientState,

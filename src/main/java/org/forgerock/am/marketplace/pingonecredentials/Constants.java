@@ -55,11 +55,10 @@ public class Constants {
 	// Outcomes
 	public static final String SUCCESS_OUTCOME_ID = "success";
 	public static final String SUCCESS_MULTI_OUTCOME_ID = "successMulti";
-	public static final String FAILURE_OUTCOME_ID = "failure";
+	public static final String ERROR_OUTCOME_ID = "error";
 	public static final String TIMEOUT_OUTCOME_ID = "timeout";
 	public static final String NOT_FOUND_OUTCOME_ID = "notFound";
-	
-	protected final static String P1_BASE_URL = "https://api.pingone";
+
 	protected final static String REVOKE_CONTENT_TYPE = "application/vnd.pingidentity.validations.revokeCredential+json";
 
 	public enum PairingDeliveryMethod {
@@ -97,8 +96,6 @@ public class Constants {
 		 * Push.
 		 */
 		PUSH;
-
-
 		/**
 		 * Get the DeliveryMethod from the index.
 		 *

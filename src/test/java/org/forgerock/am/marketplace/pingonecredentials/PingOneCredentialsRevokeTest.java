@@ -11,21 +11,19 @@ package org.forgerock.am.marketplace.pingonecredentials;
 
 import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.FAILURE_OUTCOME_ID;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.ERROR_OUTCOME_ID;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.OBJECT_ATTRIBUTES;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_USER_ID_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_WALLET_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.SUCCESS_OUTCOME_ID;
 import static org.forgerock.json.JsonValue.field;
 import static org.forgerock.json.JsonValue.json;
 import static org.forgerock.json.JsonValue.object;
 import static org.forgerock.openam.auth.node.api.SharedStateConstants.REALM;
-import static org.forgerock.openam.auth.node.api.SharedStateConstants.USERNAME;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import javax.security.auth.callback.Callback;
@@ -36,12 +34,15 @@ import org.forgerock.json.JsonValue;
 import org.forgerock.oauth2.core.AccessToken;
 import org.forgerock.openam.auth.node.api.Action;
 import org.forgerock.openam.auth.node.api.ExternalRequestContext;
+import org.forgerock.openam.auth.node.api.InputState;
+import org.forgerock.openam.auth.node.api.OutcomeProvider;
 import org.forgerock.openam.auth.node.api.TreeContext;
 import org.forgerock.openam.core.realms.Realm;
 import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
 import org.forgerock.openam.integration.pingone.PingOneWorkerException;
 import org.forgerock.openam.integration.pingone.PingOneWorkerService;
 import org.forgerock.openam.test.extensions.LoggerExtension;
+import org.forgerock.util.i18n.PreferredLocales;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -78,27 +79,25 @@ public class PingOneCredentialsRevokeTest {
 
     PingOneCredentialsRevoke node;
 
-    private static final String USER = "testUser";
-
     @BeforeEach
     public void setup() throws Exception {
         given(pingOneWorkerService.getWorker(any(), anyString())).willReturn(Optional.of(worker));
         given(pingOneWorkerService.getAccessToken(any(), any())).willReturn(accessToken);
 
-        node = spy(new PingOneCredentialsRevoke(config, realm, pingOneWorkerService, client));
+        node = new PingOneCredentialsRevoke(config, realm, pingOneWorkerService, client);
     }
 
     @Test
     public void testPingOneUserIdNotFoundInSharedState() throws Exception {
         // Given
-        JsonValue sharedState = json(object(field(USERNAME, USER), field(REALM, "/realm")));
+        JsonValue sharedState = json(field(REALM, "/realm"));
         JsonValue transientState = json(object());
 
         // When
         Action result = node.process(getContext(sharedState, transientState, emptyList()));
 
         // Then
-        assertThat(result.outcome).isEqualTo(FAILURE_OUTCOME_ID);
+        assertThat(result.outcome).isEqualTo(ERROR_OUTCOME_ID);
     }
 
     @Test
@@ -122,22 +121,89 @@ public class PingOneCredentialsRevokeTest {
     }
 
     @Test
-    public void testPingOneCommunicationFailed() throws Exception {
+    public void testGetInputs() {
+        given(config.pingOneUserIdAttribute()).willReturn(PINGONE_USER_ID_KEY);
+        given(config.credentialId()).willReturn(PINGONE_CREDENTIAL_ID_KEY);
+
+        InputState[] inputs = node.getInputs();
+
+        assertThat(inputs[0].name).isEqualTo(PINGONE_USER_ID_KEY);
+        assertThat(inputs[0].required).isEqualTo(false);
+
+        assertThat(inputs[1].name).isEqualTo(PINGONE_CREDENTIAL_ID_KEY);
+        assertThat(inputs[1].required).isEqualTo(false);
+
+        assertThat(inputs[2].name).isEqualTo(OBJECT_ATTRIBUTES);
+        assertThat(inputs[2].required).isEqualTo(false);
+    }
+
+    @Test
+    public void testGetOutcomes() {
+        PingOneCredentialsRevoke.RevokeOutcomeProvider outcomeProvider = new PingOneCredentialsRevoke.RevokeOutcomeProvider();
+
+        PreferredLocales locales = new PreferredLocales();
+        List<OutcomeProvider.Outcome> outcomes = outcomeProvider.getOutcomes(locales);
+
+        assertThat(outcomes.get(0).id).isEqualTo("success");
+        assertThat(outcomes.get(0).displayName).isEqualTo("Success");
+
+        assertThat(outcomes.get(1).id).isEqualTo("notFound");
+        assertThat(outcomes.get(1).displayName).isEqualTo("Not Found");
+
+        assertThat(outcomes.get(2).id).isEqualTo("error");
+        assertThat(outcomes.get(2).displayName).isEqualTo("Error");
+    }
+
+    @Test
+    public void testExceptionThrowDuringProcessing() throws Exception {
         // Given
-        given(pingOneWorkerService.getAccessToken(any(), any())).willReturn(null);
-        given(pingOneWorkerService.getAccessToken(realm, worker)).willThrow(new PingOneWorkerException(""));
         JsonValue sharedState = json(object(
-            field(USERNAME, USER),
             field(REALM, "/realm"),
-            field(PINGONE_USER_ID_KEY, "some-user-id")
-                                           ));
+            field(PINGONE_USER_ID_KEY, "some-user-id")));
+
+        JsonValue transientState = json(object());
+
+        when(config.credentialId()).thenReturn(null);
+
+        // When
+        Action result = node.process(getContext(sharedState, transientState, emptyList()));
+
+        // Then
+        assertThat(result.outcome).isEqualTo(ERROR_OUTCOME_ID);
+    }
+
+    @Test
+    public void testErrorAccessTokenNull() throws Exception {
+        given(pingOneWorkerService.getAccessToken(any(), any())).willReturn(null);
+
+        // Given
+        JsonValue sharedState = json(object(field(REALM, "/realm")));
         JsonValue transientState = json(object());
 
         // When
         Action result = node.process(getContext(sharedState, transientState, emptyList()));
 
         // Then
-        assertThat(result.outcome).isEqualTo(FAILURE_OUTCOME_ID);
+        assertThat(result.outcome).isEqualTo(ERROR_OUTCOME_ID);
+    }
+
+    @Test
+    public void testPingOneCommunicationFailed() throws Exception {
+        // Given
+        given(pingOneWorkerService.getAccessToken(any(), any())).willReturn(null);
+        given(pingOneWorkerService.getAccessToken(realm, worker)).willThrow(new PingOneWorkerException(""));
+
+        JsonValue sharedState = json(object(
+            field(REALM, "/realm"),
+            field(PINGONE_USER_ID_KEY, "some-user-id")));
+
+        JsonValue transientState = json(object());
+
+        // When
+        Action result = node.process(getContext(sharedState, transientState, emptyList()));
+
+        // Then
+        assertThat(result.outcome).isEqualTo(ERROR_OUTCOME_ID);
     }
 
     private TreeContext getContext(JsonValue sharedState, JsonValue transientState,

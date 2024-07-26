@@ -8,7 +8,7 @@
 
 package org.forgerock.am.marketplace.pingonecredentials;
 
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.FAILURE_OUTCOME_ID;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.ERROR_OUTCOME_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.OBJECT_ATTRIBUTES;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_USER_ID_KEY;
@@ -17,7 +17,6 @@ import static org.forgerock.am.marketplace.pingonecredentials.Constants.SUCCESS_
 
 import com.google.inject.assistedinject.Assisted;
 
-import org.apache.commons.lang.StringUtils;
 import org.forgerock.json.JsonValue;
 import org.forgerock.oauth2.core.AccessToken;
 import org.forgerock.openam.annotations.sm.Attribute;
@@ -45,6 +44,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 
+/**
+ * The PingOne Credentials Issue node lets you create a PingOne credential in a
+ * journey.
+ */
 @Node.Metadata(
     outcomeProvider = PingOneCredentialsIssue.IssueOutcomeProvider.class,
     configClass = PingOneCredentialsIssue.Config.class,
@@ -56,7 +59,7 @@ public class PingOneCredentialsIssue implements Node {
     private final PingOneWorkerService pingOneWorkerService;
 
     private final Logger logger = LoggerFactory.getLogger(PingOneCredentialsIssue.class);
-    private static final String loggerPrefix = "[PingOne Credentials Issue Node]" + PingOneCredentialsPlugin.LOG_APPENDER;
+    private static final String LOGGER_PREFIX = "[PingOne Credentials Issue Node]" + PingOneCredentialsPlugin.LOG_APPENDER;
 
     public static final String BUNDLE = PingOneCredentialsIssue.class.getName();
     private final PingOneCredentialsService client;
@@ -76,30 +79,45 @@ public class PingOneCredentialsIssue implements Node {
         @PingOneWorker
         PingOneWorkerConfig.Worker pingOneWorker();
 
-        @Attribute(order = 200)
+        /**
+         * The shared state attribute containing the PingOne User ID
+         *
+         * @return The PingOne User ID shared state attribute.
+         */
+        @Attribute(order = 200, requiredValue = true)
         default String pingOneUserIdAttribute() {
             return PINGONE_USER_ID_KEY;
         }
 
-        @Attribute(order = 300)
-        default String credentialTypeId() {
-            return "";
-        }
+        /**
+         * The Credential Type ID of the Credential
+         *
+         * @return The Credential Type ID as a String
+         */
+        @Attribute(order = 300, requiredValue = true)
+        String credentialTypeId();
 
+        /**
+         * The Credential attribute mapping. The Key is the Credential attribute field name and the Value is the shared
+         * state attribute.
+         * @return the attribute mapping for the Credential.
+         */
         @Attribute(order = 400)
         Map<String, String> attributes();
     }
 
     /**
-     * Create the node using Guice injection. Just-in-time bindings can be used to
-     * obtain instances of other classes from the plugin.
+     * The PingOne Credentials Issue node constructor.
      *
-     * @param config The service config.
-     * @param realm  The realm the node is in.
+     *
+     * @param config               the node configuration.
+     * @param realm                the realm.
+     * @param pingOneWorkerService the {@link PingOneWorkerService} instance.
+     * @param client               the {@link PingOneCredentialsService} instance.
      */
     @Inject
     PingOneCredentialsIssue(@Assisted Config config, @Assisted Realm realm,
-                                   PingOneWorkerService pingOneWorkerService, PingOneCredentialsService client) {
+                            PingOneWorkerService pingOneWorkerService, PingOneCredentialsService client) {
         this.config = config;
         this.realm = realm;
         this.pingOneWorkerService = pingOneWorkerService;
@@ -109,29 +127,17 @@ public class PingOneCredentialsIssue implements Node {
     @Override
     public Action process(TreeContext context) {
         try {
-            logger.debug(loggerPrefix + "Started");
+            logger.debug("{} Started", LOGGER_PREFIX);
 
             NodeState nodeState = context.getStateFor(this);
 
-            // Check if PingOne User ID attribute is set in sharedState
-            String pingOneUserId = nodeState.isDefined(config.pingOneUserIdAttribute())
-                                   ? nodeState.get(config.pingOneUserIdAttribute()).asString()
-                                   : null;
-
-            // Check if PingOne User ID attribute is in objectAttributes
-            if (StringUtils.isBlank(pingOneUserId)) {
-                if(nodeState.isDefined(OBJECT_ATTRIBUTES)) {
-                    JsonValue objectAttributes = nodeState.get(OBJECT_ATTRIBUTES);
-
-                    pingOneUserId = objectAttributes.isDefined(config.pingOneUserIdAttribute())
-                                    ? objectAttributes.get(config.pingOneUserIdAttribute()).asString()
-                                    : null;
-                }
-            }
-
-            if (StringUtils.isBlank(pingOneUserId)) {
+            // Check if PingOne User ID attribute is set in sharedState directly or objectAttributes
+            String pingOneUserId;
+            try {
+                pingOneUserId = new PingOneUserIdHelper().getPingOneUserId(nodeState, config.pingOneUserIdAttribute());
+            } catch (PingOneCredentialsException e) {
                 logger.warn("Expected PingOne User ID to be set in sharedState.");
-                return Action.goTo(FAILURE_OUTCOME_ID).build();
+                return Action.goTo(ERROR_OUTCOME_ID).build();
             }
 
             // Get PingOne Access Token
@@ -149,10 +155,13 @@ public class PingOneCredentialsIssue implements Node {
             return Action.goTo(SUCCESS_OUTCOME_ID).build();
         } catch (Exception ex) {
             String stackTrace = org.apache.commons.lang.exception.ExceptionUtils.getStackTrace(ex);
-            logger.error(loggerPrefix + "Exception occurred: ", ex);
-            context.getStateFor(this).putTransient(loggerPrefix + "Exception", ex.getMessage());
-            context.getStateFor(this).putTransient(loggerPrefix + "StackTrace", stackTrace);
-            return Action.goTo(FAILURE_OUTCOME_ID).build();
+            logger.error(LOGGER_PREFIX + "Exception occurred: ", ex);
+            NodeState nodeState = context.getStateFor(this);
+
+            nodeState.putTransient(LOGGER_PREFIX + "Exception", ex.getMessage());
+            nodeState.putTransient(LOGGER_PREFIX + "StackTrace", stackTrace);
+
+            return Action.goTo(ERROR_OUTCOME_ID).build();
         }
     }
 
@@ -199,7 +208,7 @@ public class PingOneCredentialsIssue implements Node {
                                                                        OutcomeProvider.class.getClassLoader());
             List<Outcome> results = new ArrayList<>();
             results.add(new Outcome(SUCCESS_OUTCOME_ID, bundle.getString("successOutcome")));
-            results.add(new Outcome(FAILURE_OUTCOME_ID, bundle.getString("failureOutcome")));
+            results.add(new Outcome(ERROR_OUTCOME_ID, bundle.getString("errorOutcome")));
             return Collections.unmodifiableList(results);
         }
     }

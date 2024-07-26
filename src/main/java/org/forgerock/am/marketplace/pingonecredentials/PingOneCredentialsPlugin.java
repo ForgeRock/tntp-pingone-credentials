@@ -54,7 +54,7 @@ public class PingOneCredentialsPlugin extends AbstractNodeAmPlugin {
 	protected static final String CURRENT_VERSION = "1.0.0";
 	protected static final String LOG_APPENDER = "[Version: " + CURRENT_VERSION + "][Marketplace]";
 	private static final Logger logger = LoggerFactory.getLogger(PingOneCredentialsPlugin.class);
-	private final String loggerPrefix = "[PingOneCredentialsPlugin]" + PingOneCredentialsPlugin.LOG_APPENDER;
+	private final String LOGGER_PREFIX = "[PingOneCredentialsPlugin]" + PingOneCredentialsPlugin.LOG_APPENDER;
 
     /** 
      * Specify the Map of list of node classes that the plugin is providing. These will then be installed and
@@ -87,30 +87,6 @@ public class PingOneCredentialsPlugin extends AbstractNodeAmPlugin {
 	}
 
     /** 
-     * Handle plugin installation. This method will only be called once, on first AM startup once the plugin
-     * is included in the classpath. The {@link #onStartup()} method will be called after this one.
-     * 
-     * No need to implement this unless your AuthNode has specific requirements on install.
-     */
-	/*@Override
-	public void onInstall() throws PluginException {
-		super.onInstall();
-	}*/
-
-    /** 
-     * Handle plugin startup. This method will be called every time AM starts, after {@link #onInstall()},
-     * {@link #onAmUpgrade(String, String)} and {@link #upgrade(String)} have been called (if relevant).
-     * 
-     * No need to implement this unless your AuthNode has specific requirements on startup.
-     *
-     * @param startupType The type of startup that is taking place.
-     */
-	/*@Override
-	public void onStartup() throws PluginException {
-		super.onStartup();
-	}*/
-
-    /** 
      * This method will be called when the version returned by {@link #getPluginVersion()} is higher than the
      * version already installed. This method will be called before the {@link #onStartup()} method.
      * 
@@ -120,8 +96,9 @@ public class PingOneCredentialsPlugin extends AbstractNodeAmPlugin {
      */	
 	@Override
 	public void upgrade(String fromVersion) throws PluginException {
-		logger.error("{} fromVersion = {}", loggerPrefix, fromVersion);
-		logger.error("{} currentVersion = {}", loggerPrefix, CURRENT_VERSION);
+		logger.debug("{} fromVersion = {}", LOGGER_PREFIX, fromVersion);
+		logger.debug("{} currentVersion = {}", LOGGER_PREFIX, CURRENT_VERSION);
+
 		try {
 			pluginTools.upgradeAuthNode(PingOneCredentialsPairWallet.class);
 			pluginTools.upgradeAuthNode(PingOneCredentialsIssue.class);
