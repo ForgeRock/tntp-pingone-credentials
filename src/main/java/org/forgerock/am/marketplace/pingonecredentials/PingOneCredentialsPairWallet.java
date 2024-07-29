@@ -140,9 +140,7 @@ public class PingOneCredentialsPairWallet implements Node {
          * @return The Digital Wallet Application ID as a String
          */
         @Attribute(order = 300, requiredValue = true)
-        default String digitalWalletApplicationId() {
-            return "";
-        }
+        String digitalWalletApplicationId();
 
         /**
          * The QR Code Pairing URL delivery method

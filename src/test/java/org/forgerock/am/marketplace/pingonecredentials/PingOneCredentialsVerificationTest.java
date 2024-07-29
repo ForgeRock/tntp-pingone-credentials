@@ -136,7 +136,7 @@ public class PingOneCredentialsVerificationTest {
             field(REALM, "/realm"),
             field(PINGONE_APPLICATION_INSTANCE_ID_KEY, "some-application-instance-id")));
 
-        given(config.digitalWalletApplicationId()).willReturn("some-digital-wallet-application-id");
+        given(config.digitalWalletApplicationId()).willReturn(Optional.of("some-digital-wallet-application-id"));
         given(config.applicationInstanceAttribute()).willReturn(PINGONE_APPLICATION_INSTANCE_ID_KEY);
         given(config.credentialType()).willReturn("some-credential-type");
         given(config.allowDeliveryMethodSelection()).willReturn(true);
@@ -240,7 +240,7 @@ public class PingOneCredentialsVerificationTest {
 
     @Test
     public void testGetInputs() {
-        given(config.digitalWalletApplicationId()).willReturn("some-digital-wallet-app-id");
+        given(config.digitalWalletApplicationId()).willReturn(Optional.of("some-digital-wallet-app-id"));
 
         InputState[] inputs = node.getInputs();
 

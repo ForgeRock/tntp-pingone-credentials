@@ -93,7 +93,7 @@ public class PingOneCredentialsUpdate implements Node {
          * @return The Credential Type ID as a String
          */
         @Attribute(order = 300, requiredValue = true)
-        default String credentialTypeId() { return "";}
+        String credentialTypeId();
 
         /**
          * The Credential ID of the Credential

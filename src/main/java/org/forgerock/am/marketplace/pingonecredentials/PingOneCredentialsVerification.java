@@ -152,7 +152,7 @@ public class PingOneCredentialsVerification implements Node {
 		 * @return The Digital Wallet Application ID as a String
 		 */
 		@Attribute(order = 500)
-		String digitalWalletApplicationId();
+		Optional<String> digitalWalletApplicationId();
 
 		/**
 		 * The shared state attribute containing the PingOne Application Instance ID
@@ -389,6 +389,8 @@ public class PingOneCredentialsVerification implements Node {
 
 			NodeState nodeState = context.getStateFor(this);
 
+			String digitalWalletApplicationId;
+
 			// Check if PingOne User ID attribute is set in sharedState
 			String applicationInstanceId = nodeState.isDefined(PINGONE_APPLICATION_INSTANCE_ID_KEY)
 			                               ? nodeState.get(PINGONE_APPLICATION_INSTANCE_ID_KEY).asString()
@@ -398,6 +400,14 @@ public class PingOneCredentialsVerification implements Node {
 				logger.error("Expected applicationInstanceId to be set in sharedState.");
 				return Action.goTo(ERROR_OUTCOME_ID).build();
 			}
+
+			if (config.digitalWalletApplicationId().isPresent()) {
+				digitalWalletApplicationId = config.digitalWalletApplicationId().get();
+			} else {
+				logger.error("Exepcted digitalWalletApplicationId to be configured for Push notification");
+				return Action.goTo(ERROR_OUTCOME_ID).build();
+			}
+
 
 			JsonValue customCredentialsPayload = null;
 
@@ -411,7 +421,7 @@ public class PingOneCredentialsVerification implements Node {
 			                                                          credentialType,
 			                                                          attributeKeys,
 			                                                          applicationInstanceId,
-			                                                          config.digitalWalletApplicationId(),
+			                                                          digitalWalletApplicationId,
 			                                                          customCredentialsPayload);
 
 			// Retrieve response values
@@ -528,7 +538,7 @@ public class PingOneCredentialsVerification implements Node {
 			new InputState(PINGONE_VERIFICATION_DELIVERY_METHOD_KEY, false),
 			new InputState(PINGONE_VERIFICATION_TIMEOUT_KEY, false),
 			new InputState(OBJECT_ATTRIBUTES, false),
-			new InputState(config.digitalWalletApplicationId(), false),
+			new InputState(config.digitalWalletApplicationId().orElse(""), false),
 			new InputState(PINGONE_APPLICATION_INSTANCE_ID_KEY, false),
 			new InputState(PINGONE_CREDENTIAL_VERIFICATION_KEY, false)
 		};
