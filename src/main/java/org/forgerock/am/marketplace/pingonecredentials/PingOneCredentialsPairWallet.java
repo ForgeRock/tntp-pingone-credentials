@@ -8,6 +8,7 @@
 
 package org.forgerock.am.marketplace.pingonecredentials;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.ACTIVE;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.EXPIRED;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.OBJECT_ATTRIBUTES;
@@ -68,6 +69,7 @@ import org.forgerock.openam.integration.pingone.PingOneWorkerService;
 import org.forgerock.openam.integration.pingone.annotations.PingOneWorker;
 import org.forgerock.openam.authentication.callbacks.PollingWaitCallback;
 import org.forgerock.openam.core.realms.Realm;
+import org.forgerock.openam.sm.annotations.adapters.TimeUnit;
 import org.forgerock.util.i18n.PreferredLocales;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -200,6 +202,7 @@ public class PingOneCredentialsPairWallet implements Node {
          * @return The timeout in seconds.
          */
         @Attribute(order = 1000)
+        @TimeUnit(SECONDS)
         default Duration timeout() {
             return Duration.ofSeconds(DEFAULT_TIMEOUT);
         }
