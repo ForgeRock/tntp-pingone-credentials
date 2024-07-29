@@ -17,7 +17,7 @@ The PingOne Credentials Update node lets you update a PingOne credential in a jo
   </thead>
   <tbody>
   <tr>
-    <td><p>ForgeRock Identity Cloud</p></td>
+    <td><p>Advanced Identity Cloud</p></td>
     <td><p><span>Yes</span></p></td>
   </tr>
   <tr>
@@ -33,7 +33,14 @@ The PingOne Credentials Update node lets you update a PingOne credential in a jo
 
 ## Inputs
 
-This node retrieves `PingOne User ID` and `Credential Type ID` from the journey state.
+This node retrieves from the journey state:
+
+- `pingOneUserId`
+- `pingOneCredentialId`
+
+## Dependencies
+This node requires a PingOne Worker Service configuration so that it can connect to your PingOne instance and perform
+the PingOne Credentials operations.
 
 ## Configuration
 
@@ -44,8 +51,12 @@ This node retrieves `PingOne User ID` and `Credential Type ID` from the journey 
   </thead>
   <tbody>
     <tr>
-      <td>PingOne Service</td>
-      <td>Marketplace Service to integrate with PingOne Services</td>
+      <td>PingOne Worker service ID</td>
+      <td>The ID of the PingOne Worker service for connecting to PingOne.</td>
+    </tr>
+    <tr>
+      <td>PingOne UserID Attribute</td>
+      <td>Local attribute name to retrieve the PingOne userID from.  Will look in journey state first, then the local datastore</td>
     </tr>
     <tr>
       <td>Credential Type ID</td>
@@ -73,7 +84,7 @@ corresponding journey state attribute.</td>
 `Success`
 All configured checks passed.
 
-`Failure`
+`Error`
 There was an error during the Update process
 
 ## Troubleshooting

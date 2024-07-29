@@ -17,7 +17,7 @@ The PingOne Credentials Verification node lets administrators configure a journe
   </thead>
   <tbody>
   <tr>
-    <td><p>ForgeRock Identity Cloud</p></td>
+    <td><p>Advanced Identity Cloud</p></td>
     <td><p><span>Yes</span></p></td>
   </tr>
   <tr>
@@ -36,6 +36,10 @@ The PingOne Credentials Verification node lets administrators configure a journe
 If the `Push` delivery method is selected, this node retrieves `pingOneApplicationInstanceId` from journey state.
 If `Custom Requested Credentials` is selected, this node retrieves `requestedCredentials` from journey state. 
 
+## Dependencies
+This node requires a PingOne Worker Service configuration so that it can connect to your PingOne instance and perform
+the PingOne Credentials operations.
+
 ## Configuration
 
 <table>
@@ -45,9 +49,8 @@ If `Custom Requested Credentials` is selected, this node retrieves `requestedCre
   </thead>
   <tbody>
     <tr>
-      <td>PingOne Service</td>
-      <td>Marketplace Service to integrate with PingOne Services
-      </td>
+      <td>PingOne Worker service ID</td>
+      <td>The ID of the PingOne Worker service for connecting to PingOne.</td>
     </tr>
     <tr>
       <td>Credential Type</td>
@@ -118,7 +121,7 @@ request status and full response.
 `Success`
 All configured checks passed.
 
-`Failure`
+`Error`
 There was an error during the Verification process
 
 `Time Out`

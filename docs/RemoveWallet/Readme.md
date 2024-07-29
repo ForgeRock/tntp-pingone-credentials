@@ -18,7 +18,7 @@ a paired digital wallet from the PingOne user.
   </thead>
   <tbody>
   <tr>
-    <td><p>ForgeRock Identity Cloud</p></td>
+    <td><p>Advanced Identity Cloud</p></td>
     <td><p><span>Yes</span></p></td>
   </tr>
   <tr>
@@ -34,8 +34,14 @@ a paired digital wallet from the PingOne user.
 
 ## Inputs
 
-This node retrieves `PingOne user ID` and `Digital wallet ID` from the journey
-state.
+This node retrieves from the journey state:
+
+- `pingOneUserId`
+- `pingOneWalletId`
+
+## Dependencies
+This node requires a PingOne Worker Service configuration so that it can connect to your PingOne instance and perform
+the PingOne Credentials operations.
 
 ## Configuration
 
@@ -46,9 +52,12 @@ state.
   </thead>
   <tbody>
     <tr>
-      <td>PingOne Service</td>
-      <td>Marketplace Service to integrate with PingOne Services
-      </td>
+      <td>PingOne Worker service ID</td>
+      <td>The ID of the PingOne Worker service for connecting to PingOne.</td>
+    </tr>
+    <tr>
+      <td>PingOne UserID Attribute</td>
+      <td>Local attribute name to retrieve the PingOne userID from.  Will look in journey state first, then the local datastore</td>
     </tr>
     <tr>
       <td>Digital Wallet ID Attribute</td>
@@ -69,7 +78,7 @@ All configured checks passed.
 `Not Found`
 No digital wallet was found to remove.
 
-`Failure`
+`Error`
 There was an error during the wallet removal process.
 
 ## Troubleshooting
