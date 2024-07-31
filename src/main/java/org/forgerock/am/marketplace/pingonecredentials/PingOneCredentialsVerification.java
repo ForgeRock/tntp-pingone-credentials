@@ -62,9 +62,9 @@ import org.forgerock.openam.auth.node.api.OutputState;
 import org.forgerock.openam.auth.node.api.StaticOutcomeProvider;
 import org.forgerock.openam.auth.node.api.TreeContext;
 import org.forgerock.openam.auth.nodes.helpers.LocalizationHelper;
-import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
-import org.forgerock.openam.integration.pingone.PingOneWorkerService;
-import org.forgerock.openam.integration.pingone.annotations.PingOneWorker;
+import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfig;
+import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfigChoiceValues;
+import org.forgerock.openam.auth.service.marketplace.TNTPPingOneUtility;
 import org.forgerock.openam.authentication.callbacks.PollingWaitCallback;
 import org.forgerock.openam.core.realms.Realm;
 import org.forgerock.openam.sm.annotations.adapters.TimeUnit;
@@ -102,7 +102,7 @@ public class PingOneCredentialsVerification implements Node {
 
 	private final Config config;
 	private final Realm realm;
-	private final PingOneWorkerService pingOneWorkerService;
+	private final TNTPPingOneConfig tntpPingOneConfig;
 	private final LocalizationHelper localizationHelper;
 	private final PingOneCredentialsService client;
 
@@ -112,13 +112,17 @@ public class PingOneCredentialsVerification implements Node {
 	 */
 	public interface Config {
 		/**
-		 * Reference to the PingOne Worker App.
+		 * Reference to the PingOne Service.
 		 *
-		 * @return The PingOne Worker App.
+		 * @return The PingOne Service.
 		 */
-		@Attribute(order = 100, requiredValue = true)
-		@PingOneWorker
-		PingOneWorkerConfig.Worker pingOneWorker();
+		/**
+		 * The Configured service
+		 */
+		@Attribute(order = 100, choiceValuesClass = TNTPPingOneConfigChoiceValues.class)
+		default String tntpPingOneConfigName() {
+			return TNTPPingOneConfigChoiceValues.createTNTPPingOneConfigName("Global Default");
+		}
 
 		/**
 		 * The Credential Type of the Credential (not the ID)
@@ -238,17 +242,15 @@ public class PingOneCredentialsVerification implements Node {
 	 *
 	 * @param config               the node configuration.
 	 * @param realm                the realm.
-	 * @param pingOneWorkerService the {@link PingOneWorkerService} instance.
 	 * @param client               the {@link PingOneCredentialsService} instance.
 	 * @param localizationHelper   the {@link LocalizationHelper} instance.
 	 */
 	@Inject
-	PingOneCredentialsVerification(@Assisted Config config, @Assisted Realm realm,
-	                               PingOneWorkerService pingOneWorkerService, PingOneCredentialsService client,
+	PingOneCredentialsVerification(@Assisted Config config, @Assisted Realm realm, PingOneCredentialsService client,
 	                               LocalizationHelper localizationHelper) {
 		this.config = config;
 		this.realm = realm;
-		this.pingOneWorkerService = pingOneWorkerService;
+		this.tntpPingOneConfig = TNTPPingOneConfigChoiceValues.getTNTPPingOneConfig(config.tntpPingOneConfigName());
 		this.client = client;
 		this.localizationHelper = localizationHelper;
 	}
@@ -261,8 +263,13 @@ public class PingOneCredentialsVerification implements Node {
 			NodeState nodeState = context.getStateFor(this);
 
 			// Get PingOne Access Token
-			PingOneWorkerConfig.Worker worker = config.pingOneWorker();
-			AccessToken accessToken = pingOneWorkerService.getAccessToken(realm, worker);
+			TNTPPingOneUtility pingOneUtility = TNTPPingOneUtility.getInstance();
+			AccessToken accessToken = pingOneUtility.getAccessToken(realm, tntpPingOneConfig);
+
+			if (accessToken == null) {
+				logger.error("Unable to get access token for PingOne Worker.");
+				return Action.goTo(ERROR_OUTCOME_ID).build();
+			}
 
 			// Check if choice was made
 			Optional<ConfirmationCallback> confirmationCallback = context.getCallback(ConfirmationCallback.class);
@@ -270,7 +277,7 @@ public class PingOneCredentialsVerification implements Node {
 				int choice = confirmationCallback.get().getSelectedIndex();
 				nodeState.putShared(PINGONE_VERIFICATION_DELIVERY_METHOD_KEY, choice);
 
-				return startVerificationTransaction(context, accessToken, worker, Constants.VerificationDeliveryMethod.fromIndex(choice),
+				return startVerificationTransaction(context, accessToken, tntpPingOneConfig, Constants.VerificationDeliveryMethod.fromIndex(choice),
 				                                    config.credentialType(), getPushMessage(context),
 				                                    config.attributeKeys());
 			}
@@ -282,14 +289,14 @@ public class PingOneCredentialsVerification implements Node {
 				if (!nodeState.isDefined(PINGONE_VERIFICATION_SESSION_KEY)) {
 					return buildAction(ERROR_OUTCOME_ID, context);
 				}
-				return getActionFromVerificationStatus(context, accessToken, worker);
+				return getActionFromVerificationStatus(context, accessToken, tntpPingOneConfig);
 			} else {
 				// Start new pairing transaction
 				if (config.allowDeliveryMethodSelection()) {
 					List<Callback> callbacks = createChoiceCallbacks(context);
 					return send(callbacks).build();
 				} else {
-					return startVerificationTransaction(context, accessToken, worker, config.deliveryMethod(),
+					return startVerificationTransaction(context, accessToken, tntpPingOneConfig, config.deliveryMethod(),
 					                                    config.credentialType(), getPushMessage(context),
 					                                    config.attributeKeys());
 				}
@@ -307,7 +314,7 @@ public class PingOneCredentialsVerification implements Node {
 	}
 
 	private Action getActionFromVerificationStatus(TreeContext context, AccessToken accessToken,
-	                                               PingOneWorkerConfig.Worker worker) throws Exception {
+	                                               TNTPPingOneConfig tntpPingOneConfig) throws Exception {
 		NodeState nodeState = context.getStateFor(this);
 
 		// Retrieve verification session ID from shared state
@@ -324,7 +331,7 @@ public class PingOneCredentialsVerification implements Node {
 
 		// Check transaction status and take appropriate action
 		JsonValue response = client.readVerificationSession(accessToken,
-		                                                    worker,
+		                                                    tntpPingOneConfig,
 		                                                    sessionId);
 
 		// Retrieve response values
@@ -354,7 +361,7 @@ public class PingOneCredentialsVerification implements Node {
 	}
 
 	private Action startVerificationTransaction(TreeContext context, AccessToken accessToken,
-	                                            PingOneWorkerConfig.Worker worker,
+	                                            TNTPPingOneConfig tntpPingOneConfig,
 	                                            VerificationDeliveryMethod deliveryMethod,
 	                                            String credentialType, String message,
 	                                            List<String> attributeKeys) throws Exception {
@@ -371,7 +378,7 @@ public class PingOneCredentialsVerification implements Node {
 			}
 
 			JsonValue response = client.createVerificationRequest(accessToken,
-																  worker,
+			                                                      tntpPingOneConfig,
 			                                                      message,
 			                                                      credentialType,
 			                                                      attributeKeys,
@@ -416,7 +423,7 @@ public class PingOneCredentialsVerification implements Node {
 			}
 
 			JsonValue response = client.createVerificationRequestPush(accessToken,
-			                                                          worker,
+			                                                          tntpPingOneConfig,
 			                                                          message,
 			                                                          credentialType,
 			                                                          attributeKeys,

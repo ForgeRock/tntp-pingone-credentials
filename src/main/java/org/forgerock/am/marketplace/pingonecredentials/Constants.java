@@ -24,6 +24,7 @@ public class Constants {
 	public static final String PINGONE_CREDENTIAL_TYPE_KEY = "pingOneCredentialType";
 
 	public static final String ENVIRONMENTS_PATH = "/environments/";
+	public static final String V1 = "/v1";
 	public static final String USERS_PATH = "/users/";
 	public static final String DIGITAL_WALLETS_PATH = "/digitalWallets";
 	public static final String CREDENTIALS_PATH = "/credentials";

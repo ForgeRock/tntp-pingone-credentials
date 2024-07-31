@@ -14,7 +14,7 @@ import org.forgerock.http.protocol.Request;
 import org.forgerock.http.protocol.Response;
 import org.forgerock.http.protocol.Status;
 import org.forgerock.oauth2.core.AccessToken;
-import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
+import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfig;
 import org.forgerock.openam.test.extensions.LoggerExtension;
 import org.forgerock.util.promise.NeverThrowsException;
 import org.forgerock.util.promise.Promise;
@@ -54,20 +54,17 @@ public class PingOneCredentialsServiceTest {
     AccessToken accessToken;
 
     @Mock
-    PingOneWorkerConfig.Worker worker;
+    TNTPPingOneConfig tntpPingOneConfig;
 
     @Mock
     private Promise<Response, NeverThrowsException> promise;
 
     PingOneCredentialsService service;
 
-    private static final String USER = "testUser";
-
     @BeforeEach
     public void setup() throws Exception {
-
-        given(worker.environmentId()).willReturn("some-environment-id");
-        given(worker.apiUrl()).willReturn("https://api.pingone.com/v1");
+        given(tntpPingOneConfig.environmentRegion()).willReturn(TNTPPingOneConfig.PingOneRegion.NA);
+        given(tntpPingOneConfig.environmentId()).willReturn("some-environment-id");
         given(accessToken.getTokenId()).willReturn("accessToken");
 
         service = new PingOneCredentialsService(handler);
@@ -128,7 +125,7 @@ public class PingOneCredentialsServiceTest {
         given(handler.handle(any(), captor.capture())).willReturn(promise);
 
         // When
-        JsonValue result = service.findWalletRequest(accessToken, worker, pingOneUserId);
+        JsonValue result = service.findWalletRequest(accessToken, tntpPingOneConfig, pingOneUserId);
 
         // Then
         Request request = captor.getAllValues().get(0);
@@ -177,7 +174,8 @@ public class PingOneCredentialsServiceTest {
         given(handler.handle(any(), captor.capture())).willReturn(promise);
 
         // When
-        JsonValue result = service.credentialIssueRequest(accessToken, worker, pingOneUserId, credentialType, attributes);
+        JsonValue result = service.credentialIssueRequest(accessToken, tntpPingOneConfig, pingOneUserId, credentialType,
+                                                          attributes);
 
         // Then
         Request request = captor.getAllValues().get(0);
@@ -227,7 +225,7 @@ public class PingOneCredentialsServiceTest {
         given(handler.handle(any(), captor.capture())).willReturn(promise);
 
         // When
-        JsonValue result = service.credentialUpdateRequest(accessToken, worker, pingOneUserId, credentialType,
+        JsonValue result = service.credentialUpdateRequest(accessToken, tntpPingOneConfig, pingOneUserId, credentialType,
                                                            credentialId, attributes);
 
         // Then
@@ -287,7 +285,7 @@ public class PingOneCredentialsServiceTest {
         given(handler.handle(any(), captor.capture())).willReturn(promise);
 
         // When
-        JsonValue result = service.createDigitalWalletRequest(accessToken, worker, pingOneUserId,
+        JsonValue result = service.createDigitalWalletRequest(accessToken, tntpPingOneConfig, pingOneUserId,
                                                               digitalWalletApplicationId, notificationList);
 
         // Then
@@ -338,7 +336,7 @@ public class PingOneCredentialsServiceTest {
         given(handler.handle(any(), captor.capture())).willReturn(promise);
 
         // When
-        JsonValue result = service.readDigitalWallet(accessToken, worker, pingOneUserId, digitalWalletId);
+        JsonValue result = service.readDigitalWallet(accessToken, tntpPingOneConfig, pingOneUserId, digitalWalletId);
 
         // Then
         Request request = captor.getAllValues().get(0);
@@ -388,7 +386,7 @@ public class PingOneCredentialsServiceTest {
         given(handler.handle(any(), captor.capture())).willReturn(promise);
 
         // When
-        JsonValue result = service.createVerificationRequest(accessToken, worker, message, credentialType,
+        JsonValue result = service.createVerificationRequest(accessToken, tntpPingOneConfig, message, credentialType,
                                                              attributeKeys, customCredentialsPayload);
 
         // Then
@@ -438,7 +436,7 @@ public class PingOneCredentialsServiceTest {
         given(handler.handle(any(), captor.capture())).willReturn(promise);
 
         // When
-        JsonValue result = service.createVerificationRequestPush(accessToken, worker, message, credentialType,
+        JsonValue result = service.createVerificationRequestPush(accessToken, tntpPingOneConfig, message, credentialType,
                                                                  attributeKeys, applicationInstanceId,
                                                                  digitalWalletApplicationId, customCredentialsPayload);
 
@@ -485,7 +483,7 @@ public class PingOneCredentialsServiceTest {
         given(handler.handle(any(), captor.capture())).willReturn(promise);
 
         // When
-        JsonValue result = service.readVerificationSession(accessToken, worker, sessionId);
+        JsonValue result = service.readVerificationSession(accessToken, tntpPingOneConfig, sessionId);
 
         // Then
         Request request = captor.getAllValues().get(0);
@@ -513,7 +511,7 @@ public class PingOneCredentialsServiceTest {
         given(handler.handle(any(), captor.capture())).willReturn(promise);
 
         // When
-        boolean result = service.deleteWalletRequest(accessToken, worker, pingOneUserId, digitalWalletId);
+        boolean result = service.deleteWalletRequest(accessToken, tntpPingOneConfig, pingOneUserId, digitalWalletId);
 
         // Then
         Request request = captor.getAllValues().get(0);
@@ -558,7 +556,8 @@ public class PingOneCredentialsServiceTest {
         given(handler.handle(any(), captor.capture())).willReturn(promise);
 
         // When
-        Constants.RevokeResult result = service.revokeCredentialRequest(accessToken, worker, pingOneUserId, credentialId);
+        Constants.RevokeResult result = service.revokeCredentialRequest(accessToken, tntpPingOneConfig, pingOneUserId,
+                                                                        credentialId);
 
         // Then
         Request request = captor.getAllValues().get(0);

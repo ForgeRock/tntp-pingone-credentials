@@ -18,6 +18,7 @@ import static org.forgerock.am.marketplace.pingonecredentials.Constants.REVOKE_C
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RevokeResult;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.SESSION_DATA_PATH;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.USERS_PATH;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.V1;
 import static org.forgerock.json.JsonValue.array;
 import static org.forgerock.json.JsonValue.json;
 import static org.forgerock.json.JsonValue.field;
@@ -41,8 +42,8 @@ import org.forgerock.http.protocol.Status;
 import org.forgerock.json.JsonValue;
 import org.forgerock.oauth2.core.AccessToken;
 
+import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfig;
 import org.forgerock.openam.http.HttpConstants;
-import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
 import org.forgerock.services.context.RootContext;
 
 /**
@@ -50,6 +51,8 @@ import org.forgerock.services.context.RootContext;
  */
 @Singleton
 public class PingOneCredentialsService {
+	protected final static String BASE_URL = "https://api.pingone";
+
 	private final Handler handler;
 
 	@Inject
@@ -62,19 +65,19 @@ public class PingOneCredentialsService {
 	 * digital wallets for the user
 	 *
 	 * @param accessToken The {@link AccessToken}
-	 * @param worker The worker {@link PingOneWorkerConfig}
+	 * @param tntpPingOneConfig The worker {@link TNTPPingOneConfig}
 	 * @param pingOneUID The PingOne user ID
 	 * @return Json containing the response from the operation
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
-	JsonValue findWalletRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker, String pingOneUID)
+	JsonValue findWalletRequest(AccessToken accessToken, TNTPPingOneConfig tntpPingOneConfig, String pingOneUID)
 		throws PingOneCredentialsServiceException {
 
 		Request request;
 
 		try {
-			String theURI = worker.apiUrl() +
-			                ENVIRONMENTS_PATH + worker.environmentId() +
+			String theURI = BASE_URL + tntpPingOneConfig.environmentRegion().getDomainSuffix() + V1 +
+			                ENVIRONMENTS_PATH + tntpPingOneConfig.environmentId() +
 			                USERS_PATH + pingOneUID +
 			                DIGITAL_WALLETS_PATH;
 
@@ -93,22 +96,22 @@ public class PingOneCredentialsService {
 	 * the POST /environments/{{envID}}/users/{{userID}}/credentials to issue a new credential to a PingOne user
 	 *
 	 * @param accessToken The {@link AccessToken}
-	 * @param worker The worker {@link PingOneWorkerConfig}
+	 * @param tntpPingOneConfig The worker {@link TNTPPingOneConfig}
 	 * @param pingOneUID The PingOne user ID
 	 * @param credentialTypeId The credential type ID
 	 * @param attributes The attributes to add to the credential
 	 * @return Json containing the response from the operation
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
-	JsonValue credentialIssueRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker, String pingOneUID,
+	JsonValue credentialIssueRequest(AccessToken accessToken, TNTPPingOneConfig tntpPingOneConfig, String pingOneUID,
 	                                 String credentialTypeId, JsonValue attributes)
 		throws PingOneCredentialsServiceException {
 
 		Request request;
 
 		try {
-			String theURI = worker.apiUrl() +
-			                ENVIRONMENTS_PATH + worker.environmentId() +
+			String theURI = BASE_URL + tntpPingOneConfig.environmentRegion().getDomainSuffix() + V1 +
+			                ENVIRONMENTS_PATH + tntpPingOneConfig.environmentId() +
 			                USERS_PATH + pingOneUID +
 			                CREDENTIALS_PATH;
 
@@ -136,7 +139,7 @@ public class PingOneCredentialsService {
 	 * credential of a PingOne user
 	 *
 	 * @param accessToken The {@link AccessToken}
-	 * @param worker The worker {@link PingOneWorkerConfig}
+	 * @param tntpPingOneConfig The worker {@link TNTPPingOneConfig}
 	 * @param pingOneUID The PingOne user ID
 	 * @param credentialTypeId The credential type ID
      * @param credentialId The credential ID
@@ -144,14 +147,14 @@ public class PingOneCredentialsService {
 	 * @return Json containing the response from the operation
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
-	JsonValue credentialUpdateRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker, String pingOneUID,
+	JsonValue credentialUpdateRequest(AccessToken accessToken, TNTPPingOneConfig tntpPingOneConfig, String pingOneUID,
 	                                  String credentialTypeId, String credentialId,
 	                                  JsonValue attributes) throws PingOneCredentialsServiceException {
 		Request request;
 
 		try {
-			String theURI = worker.apiUrl() +
-			                ENVIRONMENTS_PATH + worker.environmentId() +
+			String theURI = BASE_URL + tntpPingOneConfig.environmentRegion().getDomainSuffix() + V1 +
+			                ENVIRONMENTS_PATH + tntpPingOneConfig.environmentId() +
 			                USERS_PATH + pingOneUID +
 			                CREDENTIALS_PATH + "/" + credentialId;
 
@@ -179,21 +182,21 @@ public class PingOneCredentialsService {
 	 * for a PingOne user
 	 *
 	 * @param accessToken The {@link AccessToken}
-	 * @param worker The worker {@link PingOneWorkerConfig}
+	 * @param tntpPingOneConfig The worker {@link TNTPPingOneConfig}
 	 * @param pingOneUserId The PingOne user ID
 	 * @param digitalWalletApplicationId The digital wallet application ID
 	 * @param notificationList The list of types of notification to deliver the pairing URL
 	 * @return Json containing the response from the operation
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
-	JsonValue createDigitalWalletRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
+	JsonValue createDigitalWalletRequest(AccessToken accessToken, TNTPPingOneConfig tntpPingOneConfig,
 	                                     String pingOneUserId, String digitalWalletApplicationId,
 	                                     List<String> notificationList) throws PingOneCredentialsServiceException {
 		Request request;
 
 		try {
-			String theURI = worker.apiUrl() +
-			                ENVIRONMENTS_PATH + worker.environmentId() +
+			String theURI = BASE_URL + tntpPingOneConfig.environmentRegion().getDomainSuffix() + V1 +
+			                ENVIRONMENTS_PATH + tntpPingOneConfig.environmentId() +
 			                USERS_PATH + pingOneUserId +
 			                DIGITAL_WALLETS_PATH;
 
@@ -230,21 +233,21 @@ public class PingOneCredentialsService {
 	 * digital wallet by id of the PingOne user
 	 *
 	 * @param accessToken The {@link AccessToken}
-	 * @param worker The worker {@link PingOneWorkerConfig}
+	 * @param tntpPingOneConfig The worker {@link TNTPPingOneConfig}
 	 * @param pingOneUserId The PingOne user ID
 	 * @param digitalWalletId The digital wallet ID
 	 * @return Json containing the response from the operation
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
-	JsonValue readDigitalWallet(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
+	JsonValue readDigitalWallet(AccessToken accessToken, TNTPPingOneConfig tntpPingOneConfig,
 	                            String pingOneUserId, String digitalWalletId)
 		throws PingOneCredentialsServiceException {
 
 		Request request;
 
 		try {
-			String theURI = worker.apiUrl() +
-			                ENVIRONMENTS_PATH + worker.environmentId() +
+			String theURI = BASE_URL + tntpPingOneConfig.environmentRegion().getDomainSuffix() + V1 +
+			                ENVIRONMENTS_PATH + tntpPingOneConfig.environmentId() +
 			                USERS_PATH + pingOneUserId +
 			                DIGITAL_WALLETS_PATH + "/" + digitalWalletId;
 
@@ -264,21 +267,21 @@ public class PingOneCredentialsService {
 	 * for a credential using the QR Code notification method
 	 *
 	 * @param accessToken The {@link AccessToken}
-	 * @param worker The worker {@link PingOneWorkerConfig}
+	 * @param tntpPingOneConfig The worker {@link TNTPPingOneConfig}
 	 * @param message The message to display during verification
 	 * @param attributeKeys The attributes to include in selected disclosure
 	 * @param customCredentialsPayload A custom credential payload
 	 * @return Json containing the response from the operation
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
-	JsonValue createVerificationRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
+	JsonValue createVerificationRequest(AccessToken accessToken, TNTPPingOneConfig tntpPingOneConfig,
 	                                    String message, String credentialType, List<String> attributeKeys,
 	                                    JsonValue customCredentialsPayload) throws PingOneCredentialsServiceException {
 		Request request;
 
 		try {
-			String theURI = worker.apiUrl() +
-			                ENVIRONMENTS_PATH + worker.environmentId() +
+			String theURI = BASE_URL + tntpPingOneConfig.environmentRegion().getDomainSuffix() + V1 +
+			                ENVIRONMENTS_PATH + tntpPingOneConfig.environmentId() +
 			                PRESENTATION_SESSIONS_PATH;
 
 			URI uri = URI.create(theURI);
@@ -320,7 +323,7 @@ public class PingOneCredentialsService {
 	 * for a credential using the Push notification method
 	 *
 	 * @param accessToken The {@link AccessToken}
-	 * @param worker The worker {@link PingOneWorkerConfig}
+	 * @param tntpPingOneConfig The worker {@link TNTPPingOneConfig}
 	 * @param message The message to display during verification
 	 * @param attributeKeys The attributes to include in selected disclosure
 	 * @param applicationInstanceId The application instance id
@@ -329,7 +332,7 @@ public class PingOneCredentialsService {
 	 * @return Json containing the response from the operation
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
-	JsonValue createVerificationRequestPush(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
+	JsonValue createVerificationRequestPush(AccessToken accessToken, TNTPPingOneConfig tntpPingOneConfig,
 	                                        String message, String credentialType,
 	                                        List<String> attributeKeys, String applicationInstanceId,
 	                                        String digitalWalletApplicationId,
@@ -339,8 +342,8 @@ public class PingOneCredentialsService {
 		Request request;
 
 		try {
-			String theURI = worker.apiUrl() +
-			                ENVIRONMENTS_PATH + worker.environmentId() +
+			String theURI = BASE_URL + tntpPingOneConfig.environmentRegion().getDomainSuffix() + V1 +
+			                ENVIRONMENTS_PATH + tntpPingOneConfig.environmentId() +
 			                PRESENTATION_SESSIONS_PATH;
 
 			URI uri = URI.create(theURI);
@@ -391,18 +394,18 @@ public class PingOneCredentialsService {
 	 * verification session data from the session ID.
 	 *
 	 * @param accessToken The {@link AccessToken}
-	 * @param worker The worker {@link PingOneWorkerConfig}
+	 * @param tntpPingOneConfig The worker {@link TNTPPingOneConfig}
 	 * @param sessionId The verification session ID
 	 * @return Json containing the response from the operation
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
-	JsonValue readVerificationSession(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
+	JsonValue readVerificationSession(AccessToken accessToken, TNTPPingOneConfig tntpPingOneConfig,
 	                                  String sessionId) throws PingOneCredentialsServiceException {
 		Request request;
 
 		try {
-			String theURI = worker.apiUrl() +
-			                ENVIRONMENTS_PATH + worker.environmentId()  +
+			String theURI = BASE_URL + tntpPingOneConfig.environmentRegion().getDomainSuffix() + V1 +
+			                ENVIRONMENTS_PATH + tntpPingOneConfig.environmentId() +
 			                PRESENTATION_SESSIONS_PATH + "/" + sessionId +
 			                SESSION_DATA_PATH;
 
@@ -422,18 +425,18 @@ public class PingOneCredentialsService {
 	 * verification session data from the session ID.
 	 *
 	 * @param accessToken The {@link AccessToken}
-	 * @param worker The worker {@link PingOneWorkerConfig}
+	 * @param tntpPingOneConfig The worker {@link TNTPPingOneConfig}
 	 * @param pingOneUserId The PingOne user ID
 	 * @param digitalWalletId The digital wallet ID
 	 * @return Boolean true if the deletion was successful or false if the wallet doesn't exist
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
-	boolean deleteWalletRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
+	boolean deleteWalletRequest(AccessToken accessToken, TNTPPingOneConfig tntpPingOneConfig,
 	                            String pingOneUserId, String digitalWalletId) throws PingOneCredentialsServiceException {
 		Request request;
 		try {
-			String theURI = worker.apiUrl() +
-			                ENVIRONMENTS_PATH + worker.environmentId() +
+			String theURI = BASE_URL + tntpPingOneConfig.environmentRegion().getDomainSuffix() + V1 +
+			                ENVIRONMENTS_PATH + tntpPingOneConfig.environmentId() +
 			                USERS_PATH + pingOneUserId +
 			                DIGITAL_WALLETS_PATH + "/" +digitalWalletId;
 
@@ -464,21 +467,21 @@ public class PingOneCredentialsService {
 	 * verification session data from the session ID.
 	 *
 	 * @param accessToken The {@link AccessToken}
-	 * @param worker The worker {@link PingOneWorkerConfig}
+	 * @param tntpPingOneConfig The worker {@link TNTPPingOneConfig}
 	 * @param pingOneUserId The PingOne user ID
 	 * @param credentialId The digital wallet ID
 	 * @return RevokeResult REVOKED if successfully revoked, NOT_FOUND if the wallet does not exist,
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
-	RevokeResult revokeCredentialRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
+	RevokeResult revokeCredentialRequest(AccessToken accessToken, TNTPPingOneConfig tntpPingOneConfig,
 	                                     String pingOneUserId, String credentialId)
 		throws PingOneCredentialsServiceException {
 
 		Request request;
 		try {
 
-			String theURI = worker.apiUrl() +
-			                ENVIRONMENTS_PATH + worker.environmentId() +
+			String theURI = BASE_URL + tntpPingOneConfig.environmentRegion().getDomainSuffix() + V1 +
+			                ENVIRONMENTS_PATH + tntpPingOneConfig.environmentId() +
 			                USERS_PATH + pingOneUserId +
 			                CREDENTIALS_PATH + "/" + credentialId;
 

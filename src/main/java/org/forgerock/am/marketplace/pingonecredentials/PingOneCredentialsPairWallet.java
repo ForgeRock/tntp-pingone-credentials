@@ -64,9 +64,9 @@ import org.forgerock.openam.auth.node.api.OutputState;
 import org.forgerock.openam.auth.node.api.StaticOutcomeProvider;
 import org.forgerock.openam.auth.node.api.TreeContext;
 import org.forgerock.openam.auth.nodes.helpers.LocalizationHelper;
-import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
-import org.forgerock.openam.integration.pingone.PingOneWorkerService;
-import org.forgerock.openam.integration.pingone.annotations.PingOneWorker;
+import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfig;
+import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfigChoiceValues;
+import org.forgerock.openam.auth.service.marketplace.TNTPPingOneUtility;
 import org.forgerock.openam.authentication.callbacks.PollingWaitCallback;
 import org.forgerock.openam.core.realms.Realm;
 import org.forgerock.openam.sm.annotations.adapters.TimeUnit;
@@ -106,7 +106,7 @@ public class PingOneCredentialsPairWallet implements Node {
 
     private final Config config;
     private final Realm realm;
-    private final PingOneWorkerService pingOneWorkerService;
+    private final TNTPPingOneConfig tntpPingOneConfig;
     private final LocalizationHelper localizationHelper;
     private final PingOneCredentialsService client;
 
@@ -116,13 +116,17 @@ public class PingOneCredentialsPairWallet implements Node {
     public interface Config {
 
         /**
-         * Reference to the PingOne Worker App.
+         * Reference to the PingOne Service.
          *
-         * @return The PingOne Worker App.
+         * @return The PingOne Service.
          */
-        @Attribute(order = 100, requiredValue = true)
-        @PingOneWorker
-        PingOneWorkerConfig.Worker pingOneWorker();
+        /**
+         * The Configured service
+         */
+        @Attribute(order = 100, choiceValuesClass = TNTPPingOneConfigChoiceValues.class)
+        default String tntpPingOneConfigName() {
+            return TNTPPingOneConfigChoiceValues.createTNTPPingOneConfigName("Global Default");
+        }
 
         /**
          * The shared state attribute containing the PingOne User ID
@@ -227,17 +231,15 @@ public class PingOneCredentialsPairWallet implements Node {
      *
      * @param config               the node configuration.
      * @param realm                the realm.
-     * @param pingOneWorkerService the {@link PingOneWorkerService} instance.
      * @param client               the {@link PingOneCredentialsService} instance.
      * @param localizationHelper   the {@link LocalizationHelper} instance.
      */
     @Inject
-    PingOneCredentialsPairWallet(@Assisted Config config, @Assisted Realm realm,
-                                 PingOneWorkerService pingOneWorkerService, PingOneCredentialsService client,
+    PingOneCredentialsPairWallet(@Assisted Config config, @Assisted Realm realm, PingOneCredentialsService client,
                                  LocalizationHelper localizationHelper) {
         this.config = config;
         this.realm = realm;
-        this.pingOneWorkerService = pingOneWorkerService;
+        this.tntpPingOneConfig = TNTPPingOneConfigChoiceValues.getTNTPPingOneConfig(config.tntpPingOneConfigName());
         this.client = client;
         this.localizationHelper = localizationHelper;
     }
@@ -259,12 +261,12 @@ public class PingOneCredentialsPairWallet implements Node {
             }
 
             // Get PingOne Access Token
-            PingOneWorkerConfig.Worker worker = config.pingOneWorker();
-            AccessToken accessToken = pingOneWorkerService.getAccessToken(realm, worker);
+            TNTPPingOneUtility pingOneUtility = TNTPPingOneUtility.getInstance();
+            AccessToken accessToken = pingOneUtility.getAccessToken(realm, tntpPingOneConfig);
 
             if (accessToken == null) {
                 logger.error("Unable to get access token for PingOne Worker.");
-                return buildAction(ERROR_OUTCOME_ID, context);
+                return Action.goTo(ERROR_OUTCOME_ID).build();
             }
 
             // Check if choice was made
@@ -286,8 +288,8 @@ public class PingOneCredentialsPairWallet implements Node {
                     case SMS -> smsDelivery = true;
                 }
 
-                return startPairingTransaction(context, accessToken, worker, qrCodeDelivery, emailDelivery, smsDelivery,
-                                               pingOneUserId, config.digitalWalletApplicationId());
+                return startPairingTransaction(context, accessToken, tntpPingOneConfig, qrCodeDelivery, emailDelivery,
+                                               smsDelivery, pingOneUserId, config.digitalWalletApplicationId());
             }
 
             // Check if transaction was started
@@ -297,7 +299,7 @@ public class PingOneCredentialsPairWallet implements Node {
                 if (!nodeState.isDefined(PINGONE_PAIRING_WALLET_ID_KEY)) {
                     return buildAction(ERROR_OUTCOME_ID, context);
                 }
-                return getActionFromPairingTransactionStatus(context, accessToken, worker, pingOneUserId);
+                return getActionFromPairingTransactionStatus(context, accessToken, tntpPingOneConfig, pingOneUserId);
             } else {
 
                 // Start new pairing transaction
@@ -305,7 +307,7 @@ public class PingOneCredentialsPairWallet implements Node {
                     List<Callback> callbacks = createChoiceCallbacks(context);
                     return send(callbacks).build();
                 } else {
-                    return startPairingTransaction(context, accessToken, worker, config.qrCodeDelivery(),
+                    return startPairingTransaction(context, accessToken, tntpPingOneConfig, config.qrCodeDelivery(),
                                                    config.emailDelivery(), config.smsDelivery(), pingOneUserId,
                                                    config.digitalWalletApplicationId());
                 }
@@ -323,7 +325,7 @@ public class PingOneCredentialsPairWallet implements Node {
     }
 
     private Action getActionFromPairingTransactionStatus(TreeContext context, AccessToken accessToken,
-                                                         PingOneWorkerConfig.Worker worker,
+                                                         TNTPPingOneConfig tntpPingOneConfig,
                                                          String pingOneUserId)
         throws Exception {
         NodeState nodeState = context.getStateFor(this);
@@ -348,7 +350,7 @@ public class PingOneCredentialsPairWallet implements Node {
 
         // Check transaction status and take appropriate action
         JsonValue response = client.readDigitalWallet(accessToken,
-                                                      worker,
+                                                      tntpPingOneConfig,
                                                       pingOneUserId,
                                                       walletId);
         // Retrieve response values
@@ -380,7 +382,7 @@ public class PingOneCredentialsPairWallet implements Node {
     }
 
     private Action startPairingTransaction(TreeContext context, AccessToken accessToken,
-                                           PingOneWorkerConfig.Worker worker, boolean qrCodeDelivery,
+                                           TNTPPingOneConfig tntpPingOneConfig, boolean qrCodeDelivery,
                                            boolean emailDelivery, boolean smsDelivery, String pingOneUserId,
                                            String digitalWalletApplicationId)
         throws Exception {
@@ -396,7 +398,7 @@ public class PingOneCredentialsPairWallet implements Node {
         }
 
         JsonValue response = client.createDigitalWalletRequest(accessToken,
-                                                               worker,
+                                                               tntpPingOneConfig,
                                                                pingOneUserId,
                                                                digitalWalletApplicationId,
                                                                notificationList);

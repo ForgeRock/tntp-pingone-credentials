@@ -37,17 +37,19 @@ import org.forgerock.openam.auth.node.api.ExternalRequestContext;
 import org.forgerock.openam.auth.node.api.InputState;
 import org.forgerock.openam.auth.node.api.OutcomeProvider;
 import org.forgerock.openam.auth.node.api.TreeContext;
+import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfigChoiceValues;
+import org.forgerock.openam.auth.service.marketplace.TNTPPingOneUtility;
 import org.forgerock.openam.core.realms.Realm;
-import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
-import org.forgerock.openam.integration.pingone.PingOneWorkerException;
-import org.forgerock.openam.integration.pingone.PingOneWorkerService;
 import org.forgerock.openam.test.extensions.LoggerExtension;
 import org.forgerock.util.i18n.PreferredLocales;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -59,17 +61,18 @@ public class PingOneCredentialsRemoveWalletTest {
     @RegisterExtension
     public LoggerExtension loggerExtension = new LoggerExtension(PingOneCredentialsRemoveWallet.class);
 
+    MockedStatic<TNTPPingOneUtility> mockedStaticPingOneUtility;
+
+    MockedStatic<TNTPPingOneConfigChoiceValues> mockedStaticPingOneConfigChoices;
+
     @Mock
     PingOneCredentialsRemoveWallet.Config config;
 
     @Mock
-    PingOneWorkerService pingOneWorkerService;
+    TNTPPingOneUtility pingOneUtility;
 
     @Mock
     AccessToken accessToken;
-
-    @Mock
-    PingOneWorkerConfig.Worker worker;
 
     @Mock
     Realm realm;
@@ -81,10 +84,23 @@ public class PingOneCredentialsRemoveWalletTest {
 
     @BeforeEach
     public void setup() throws Exception {
-        given(pingOneWorkerService.getWorker(any(), anyString())).willReturn(Optional.of(worker));
-        given(pingOneWorkerService.getAccessToken(any(), any())).willReturn(accessToken);
+        mockedStaticPingOneUtility = Mockito.mockStatic(TNTPPingOneUtility.class);
+        mockedStaticPingOneUtility.when(TNTPPingOneUtility::getInstance).thenReturn(pingOneUtility);
 
-        node = new PingOneCredentialsRemoveWallet(config, realm, pingOneWorkerService, client);
+        mockedStaticPingOneConfigChoices = Mockito.mockStatic(TNTPPingOneConfigChoiceValues.class);
+        mockedStaticPingOneConfigChoices.when(() -> TNTPPingOneConfigChoiceValues.
+            createTNTPPingOneConfigName("Global Default")).thenReturn("Global Default");
+
+        given(pingOneUtility.getAccessToken(any(), any())).willReturn(accessToken);
+
+        node = new PingOneCredentialsRemoveWallet(config, realm, client);
+    }
+
+    @AfterEach
+    public void tearDown() {
+        // Closing the mockStatic after each test
+        mockedStaticPingOneUtility.close();
+        mockedStaticPingOneConfigChoices.close();
     }
 
     @Test
@@ -210,7 +226,7 @@ public class PingOneCredentialsRemoveWalletTest {
 
     @Test
     public void testErrorAccessTokenNull() throws Exception {
-        given(pingOneWorkerService.getAccessToken(any(), any())).willReturn(null);
+        given(pingOneUtility.getAccessToken(any(), any())).willReturn(null);
 
         // Given
         JsonValue sharedState = json(object(field(REALM, "/realm")));
@@ -226,8 +242,8 @@ public class PingOneCredentialsRemoveWalletTest {
     @Test
     public void testPingOneCommunicationFailed() throws Exception {
         // Given
-        given(pingOneWorkerService.getAccessToken(any(), any())).willReturn(null);
-        given(pingOneWorkerService.getAccessToken(realm, worker)).willThrow(new PingOneWorkerException(""));
+        given(pingOneUtility.getAccessToken(any(), any())).willReturn(null);
+
         JsonValue sharedState = json(object(
             field(REALM, "/realm"),
             field(PINGONE_USER_ID_KEY, "some-user-id")

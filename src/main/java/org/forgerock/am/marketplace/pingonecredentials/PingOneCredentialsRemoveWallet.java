@@ -26,10 +26,10 @@ import org.forgerock.openam.auth.node.api.NodeState;
 import org.forgerock.openam.auth.node.api.OutcomeProvider;
 import org.forgerock.openam.auth.node.api.StaticOutcomeProvider;
 import org.forgerock.openam.auth.node.api.TreeContext;
-import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
-import org.forgerock.openam.integration.pingone.PingOneWorkerService;
+import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfig;
+import org.forgerock.openam.auth.service.marketplace.TNTPPingOneConfigChoiceValues;
+import org.forgerock.openam.auth.service.marketplace.TNTPPingOneUtility;
 import org.forgerock.openam.core.realms.Realm;
-import org.forgerock.openam.integration.pingone.annotations.PingOneWorker;
 import org.forgerock.util.i18n.PreferredLocales;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +50,7 @@ public class PingOneCredentialsRemoveWallet implements Node {
 
     private final Config config;
     private final Realm realm;
-    private final PingOneWorkerService pingOneWorkerService;
+    private final TNTPPingOneConfig tntpPingOneConfig;
 
     private final Logger logger = LoggerFactory.getLogger(PingOneCredentialsRemoveWallet.class);
     private static final String LOGGER_PREFIX = "[PingOne Credentials Remove Wallet Node]" + PingOneCredentialsPlugin.LOG_APPENDER;
@@ -65,13 +65,17 @@ public class PingOneCredentialsRemoveWallet implements Node {
     public interface Config {
 
         /**
-         * Reference to the PingOne Worker App.
+         * Reference to the PingOne Service.
          *
-         * @return The PingOne Worker App.
+         * @return The PingOne Service.
          */
-        @Attribute(order = 100, requiredValue = true)
-        @PingOneWorker
-        PingOneWorkerConfig.Worker pingOneWorker();
+        /**
+         * The Configured service
+         */
+        @Attribute(order = 100, choiceValuesClass = TNTPPingOneConfigChoiceValues.class)
+        default String tntpPingOneConfigName() {
+            return TNTPPingOneConfigChoiceValues.createTNTPPingOneConfigName("Global Default");
+        }
 
         /**
          * The shared state attribute containing the PingOne User ID
@@ -100,15 +104,13 @@ public class PingOneCredentialsRemoveWallet implements Node {
      *
      * @param config               the node configuration.
      * @param realm                the realm.
-     * @param pingOneWorkerService the {@link PingOneWorkerService} instance.
      * @param client               the {@link PingOneCredentialsService} instance.
      */
     @Inject
-    PingOneCredentialsRemoveWallet(@Assisted Config config, @Assisted Realm realm,
-                                   PingOneWorkerService pingOneWorkerService, PingOneCredentialsService client) {
+    PingOneCredentialsRemoveWallet(@Assisted Config config, @Assisted Realm realm, PingOneCredentialsService client) {
         this.config = config;
         this.realm = realm;
-        this.pingOneWorkerService = pingOneWorkerService;
+        this.tntpPingOneConfig = TNTPPingOneConfigChoiceValues.getTNTPPingOneConfig(config.tntpPingOneConfigName());
         this.client = client;
     }
 
@@ -139,16 +141,17 @@ public class PingOneCredentialsRemoveWallet implements Node {
             }
 
             // Get PingOne Access Token
-            PingOneWorkerConfig.Worker worker = config.pingOneWorker();
-            AccessToken accessToken = pingOneWorkerService.getAccessToken(realm, worker);
+            TNTPPingOneUtility pingOneUtility = TNTPPingOneUtility.getInstance();
+            AccessToken accessToken = pingOneUtility.getAccessToken(realm, tntpPingOneConfig);
 
             if (accessToken == null) {
                 logger.error("Unable to get access token for PingOne Worker.");
-                return  Action.goTo(ERROR_OUTCOME_ID).build();
+                return Action.goTo(ERROR_OUTCOME_ID).build();
             }
 
+
             boolean result = client.deleteWalletRequest(accessToken,
-                                                        worker,
+                                                        tntpPingOneConfig,
                                                         pingOneUserId,
                                                         digitalWalletId);
             if (result) {
