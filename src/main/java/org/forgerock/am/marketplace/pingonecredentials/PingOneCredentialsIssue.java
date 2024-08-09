@@ -28,9 +28,8 @@ import org.forgerock.openam.auth.node.api.OutcomeProvider;
 import org.forgerock.openam.auth.node.api.OutputState;
 import org.forgerock.openam.auth.node.api.StaticOutcomeProvider;
 import org.forgerock.openam.auth.node.api.TreeContext;
-import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
-import org.forgerock.openam.integration.pingone.PingOneWorkerService;
-import org.forgerock.openam.integration.pingone.annotations.PingOneWorker;
+import org.forgerock.openam.integration.pingone.api.PingOneWorker;
+import org.forgerock.openam.integration.pingone.api.PingOneWorkerService;
 import org.forgerock.openam.core.realms.Realm;
 import org.forgerock.util.i18n.PreferredLocales;
 import org.slf4j.Logger;
@@ -77,7 +76,7 @@ public class PingOneCredentialsIssue implements Node {
          */
         @Attribute(order = 100, requiredValue = true)
         @PingOneWorker
-        PingOneWorkerConfig.Worker pingOneWorker();
+        PingOneWorkerService.Worker pingOneWorker();
 
         /**
          * The shared state attribute containing the PingOne User ID
@@ -141,8 +140,8 @@ public class PingOneCredentialsIssue implements Node {
             }
 
             // Get PingOne Access Token
-            PingOneWorkerConfig.Worker worker = config.pingOneWorker();
-            AccessToken accessToken = pingOneWorkerService.getAccessToken(realm, worker);
+            PingOneWorkerService.Worker worker = config.pingOneWorker();
+            String accessToken = pingOneWorkerService.getAccessTokenId(realm, worker);
 
             JsonValue response = client.credentialIssueRequest(accessToken,
                                                                worker,

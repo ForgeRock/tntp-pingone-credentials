@@ -42,7 +42,7 @@ import org.forgerock.json.JsonValue;
 import org.forgerock.oauth2.core.AccessToken;
 
 import org.forgerock.openam.http.HttpConstants;
-import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
+import org.forgerock.openam.integration.pingone.api.PingOneWorkerService;
 import org.forgerock.services.context.RootContext;
 
 /**
@@ -62,12 +62,12 @@ public class PingOneCredentialsService {
 	 * digital wallets for the user
 	 *
 	 * @param accessToken The {@link AccessToken}
-	 * @param worker The worker {@link PingOneWorkerConfig}
+	 * @param worker The worker {@link PingOneWorkerService}
 	 * @param pingOneUID The PingOne user ID
 	 * @return Json containing the response from the operation
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
-	JsonValue findWalletRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker, String pingOneUID)
+	JsonValue findWalletRequest(String accessToken, PingOneWorkerService.Worker worker, String pingOneUID)
 		throws PingOneCredentialsServiceException {
 
 		Request request;
@@ -93,14 +93,14 @@ public class PingOneCredentialsService {
 	 * the POST /environments/{{envID}}/users/{{userID}}/credentials to issue a new credential to a PingOne user
 	 *
 	 * @param accessToken The {@link AccessToken}
-	 * @param worker The worker {@link PingOneWorkerConfig}
+	 * @param worker The worker {@link PingOneWorkerService}
 	 * @param pingOneUID The PingOne user ID
 	 * @param credentialTypeId The credential type ID
 	 * @param attributes The attributes to add to the credential
 	 * @return Json containing the response from the operation
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
-	JsonValue credentialIssueRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker, String pingOneUID,
+	JsonValue credentialIssueRequest(String accessToken, PingOneWorkerService.Worker worker, String pingOneUID,
 	                                 String credentialTypeId, JsonValue attributes)
 		throws PingOneCredentialsServiceException {
 
@@ -136,7 +136,7 @@ public class PingOneCredentialsService {
 	 * credential of a PingOne user
 	 *
 	 * @param accessToken The {@link AccessToken}
-	 * @param worker The worker {@link PingOneWorkerConfig}
+	 * @param worker The worker {@link PingOneWorkerService}
 	 * @param pingOneUID The PingOne user ID
 	 * @param credentialTypeId The credential type ID
      * @param credentialId The credential ID
@@ -144,7 +144,7 @@ public class PingOneCredentialsService {
 	 * @return Json containing the response from the operation
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
-	JsonValue credentialUpdateRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker, String pingOneUID,
+	JsonValue credentialUpdateRequest(String accessToken, PingOneWorkerService.Worker worker, String pingOneUID,
 	                                  String credentialTypeId, String credentialId,
 	                                  JsonValue attributes) throws PingOneCredentialsServiceException {
 		Request request;
@@ -179,14 +179,14 @@ public class PingOneCredentialsService {
 	 * for a PingOne user
 	 *
 	 * @param accessToken The {@link AccessToken}
-	 * @param worker The worker {@link PingOneWorkerConfig}
+	 * @param worker The worker {@link PingOneWorkerService}
 	 * @param pingOneUserId The PingOne user ID
 	 * @param digitalWalletApplicationId The digital wallet application ID
 	 * @param notificationList The list of types of notification to deliver the pairing URL
 	 * @return Json containing the response from the operation
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
-	JsonValue createDigitalWalletRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
+	JsonValue createDigitalWalletRequest(String accessToken, PingOneWorkerService.Worker worker,
 	                                     String pingOneUserId, String digitalWalletApplicationId,
 	                                     List<String> notificationList) throws PingOneCredentialsServiceException {
 		Request request;
@@ -230,13 +230,13 @@ public class PingOneCredentialsService {
 	 * digital wallet by id of the PingOne user
 	 *
 	 * @param accessToken The {@link AccessToken}
-	 * @param worker The worker {@link PingOneWorkerConfig}
+	 * @param worker The worker {@link PingOneWorkerService}
 	 * @param pingOneUserId The PingOne user ID
 	 * @param digitalWalletId The digital wallet ID
 	 * @return Json containing the response from the operation
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
-	JsonValue readDigitalWallet(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
+	JsonValue readDigitalWallet(String accessToken, PingOneWorkerService.Worker worker,
 	                            String pingOneUserId, String digitalWalletId)
 		throws PingOneCredentialsServiceException {
 
@@ -264,14 +264,14 @@ public class PingOneCredentialsService {
 	 * for a credential using the QR Code notification method
 	 *
 	 * @param accessToken The {@link AccessToken}
-	 * @param worker The worker {@link PingOneWorkerConfig}
+	 * @param worker The worker {@link PingOneWorkerService}
 	 * @param message The message to display during verification
 	 * @param attributeKeys The attributes to include in selected disclosure
 	 * @param customCredentialsPayload A custom credential payload
 	 * @return Json containing the response from the operation
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
-	JsonValue createVerificationRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
+	JsonValue createVerificationRequest(String accessToken, PingOneWorkerService.Worker worker,
 	                                    String message, String credentialType, List<String> attributeKeys,
 	                                    JsonValue customCredentialsPayload) throws PingOneCredentialsServiceException {
 		Request request;
@@ -320,7 +320,7 @@ public class PingOneCredentialsService {
 	 * for a credential using the Push notification method
 	 *
 	 * @param accessToken The {@link AccessToken}
-	 * @param worker The worker {@link PingOneWorkerConfig}
+	 * @param worker The worker {@link PingOneWorkerService}
 	 * @param message The message to display during verification
 	 * @param attributeKeys The attributes to include in selected disclosure
 	 * @param applicationInstanceId The application instance id
@@ -329,7 +329,7 @@ public class PingOneCredentialsService {
 	 * @return Json containing the response from the operation
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
-	JsonValue createVerificationRequestPush(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
+	JsonValue createVerificationRequestPush(String accessToken, PingOneWorkerService.Worker worker,
 	                                        String message, String credentialType,
 	                                        List<String> attributeKeys, String applicationInstanceId,
 	                                        String digitalWalletApplicationId,
@@ -391,12 +391,12 @@ public class PingOneCredentialsService {
 	 * verification session data from the session ID.
 	 *
 	 * @param accessToken The {@link AccessToken}
-	 * @param worker The worker {@link PingOneWorkerConfig}
+	 * @param worker The worker {@link PingOneWorkerService}
 	 * @param sessionId The verification session ID
 	 * @return Json containing the response from the operation
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
-	JsonValue readVerificationSession(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
+	JsonValue readVerificationSession(String accessToken, PingOneWorkerService.Worker worker,
 	                                  String sessionId) throws PingOneCredentialsServiceException {
 		Request request;
 
@@ -422,13 +422,13 @@ public class PingOneCredentialsService {
 	 * verification session data from the session ID.
 	 *
 	 * @param accessToken The {@link AccessToken}
-	 * @param worker The worker {@link PingOneWorkerConfig}
+	 * @param worker The worker {@link PingOneWorkerService}
 	 * @param pingOneUserId The PingOne user ID
 	 * @param digitalWalletId The digital wallet ID
 	 * @return Boolean true if the deletion was successful or false if the wallet doesn't exist
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
-	boolean deleteWalletRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
+	boolean deleteWalletRequest(String accessToken, PingOneWorkerService.Worker worker,
 	                            String pingOneUserId, String digitalWalletId) throws PingOneCredentialsServiceException {
 		Request request;
 		try {
@@ -464,13 +464,13 @@ public class PingOneCredentialsService {
 	 * verification session data from the session ID.
 	 *
 	 * @param accessToken The {@link AccessToken}
-	 * @param worker The worker {@link PingOneWorkerConfig}
+	 * @param worker The worker {@link PingOneWorkerService}
 	 * @param pingOneUserId The PingOne user ID
 	 * @param credentialId The digital wallet ID
 	 * @return RevokeResult REVOKED if successfully revoked, NOT_FOUND if the wallet does not exist,
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
-	RevokeResult revokeCredentialRequest(AccessToken accessToken, PingOneWorkerConfig.Worker worker,
+	RevokeResult revokeCredentialRequest(String accessToken, PingOneWorkerService.Worker worker,
 	                                     String pingOneUserId, String credentialId)
 		throws PingOneCredentialsServiceException {
 
@@ -513,7 +513,7 @@ public class PingOneCredentialsService {
 		}
 	}
 
-	private JsonValue getResponse(Request request, AccessToken accessToken, String x) throws Exception {
+	private JsonValue getResponse(Request request, String accessToken, String x) throws Exception {
 		addAuthorizationHeader(request, accessToken);
 		Response response = handler.handle(new RootContext(), request).getOrThrow();
 
@@ -524,9 +524,9 @@ public class PingOneCredentialsService {
 		}
 	}
 
-	private static void addAuthorizationHeader(Request request, AccessToken accessToken) throws MalformedHeaderException {
+	private static void addAuthorizationHeader(Request request, String accessToken) throws MalformedHeaderException {
 		AuthorizationHeader header = new AuthorizationHeader();
-		BearerToken bearerToken = new BearerToken(accessToken.getTokenId());
+		BearerToken bearerToken = new BearerToken(accessToken);
 		header.setRawValue(BearerToken.NAME + " " + bearerToken);
 		request.addHeaders(header);
 	}
