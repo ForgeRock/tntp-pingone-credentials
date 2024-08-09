@@ -13,8 +13,7 @@ import org.forgerock.http.Handler;
 import org.forgerock.http.protocol.Request;
 import org.forgerock.http.protocol.Response;
 import org.forgerock.http.protocol.Status;
-import org.forgerock.oauth2.core.AccessToken;
-import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
+import org.forgerock.openam.integration.pingone.api.PingOneWorkerService;
 import org.forgerock.openam.test.extensions.LoggerExtension;
 import org.forgerock.util.promise.NeverThrowsException;
 import org.forgerock.util.promise.Promise;
@@ -51,24 +50,21 @@ public class PingOneCredentialsServiceTest {
     private Handler handler;
 
     @Mock
-    AccessToken accessToken;
-
-    @Mock
-    PingOneWorkerConfig.Worker worker;
+    PingOneWorkerService.Worker worker;
 
     @Mock
     private Promise<Response, NeverThrowsException> promise;
 
     PingOneCredentialsService service;
 
-    private static final String USER = "testUser";
+    String accessToken;
 
     @BeforeEach
     public void setup() throws Exception {
+        this.accessToken = "some-access-token";
 
         given(worker.environmentId()).willReturn("some-environment-id");
         given(worker.apiUrl()).willReturn("https://api.pingone.com/v1");
-        given(accessToken.getTokenId()).willReturn("accessToken");
 
         service = new PingOneCredentialsService(handler);
     }
@@ -135,7 +131,7 @@ public class PingOneCredentialsServiceTest {
         assertThat(request.getUri().toString()).isEqualTo("https://api.pingone.com/v1/environments/" +
                                                           "some-environment-id/users/some-pingone-userid/digitalWallets");
         assertThat(request.getMethod()).isEqualTo("GET");
-        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer accessToken");
+        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer some-access-token");
         assertThat(result.get("_embedded").get("digitalWallets").get(1).get("id").asString()).isEqualTo("some-wallet-id2");
         assertThat(result.get("_embedded").get("digitalWallets").get(1).get("status").asString()).isEqualTo("ACTIVE");
         assertThat(result.get("_embedded").get("digitalWallets").get(1).get("digitalWalletApplication").get("id").asString())
@@ -184,7 +180,7 @@ public class PingOneCredentialsServiceTest {
         assertThat(request.getUri().toString()).isEqualTo("https://api.pingone.com/v1/environments/" +
                                                           "some-environment-id/users/some-pingone-userid/credentials");
         assertThat(request.getMethod()).isEqualTo("POST");
-        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer accessToken");
+        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer some-access-token");
         assertThat(result.get("id").asString()).isEqualTo("some-credential");
         assertThat(result.get("status").asString()).isEqualTo("PENDING");
         assertThat(result.get("credentialType").get("id").asString())
@@ -236,7 +232,7 @@ public class PingOneCredentialsServiceTest {
                                                           "some-environment-id/users/some-pingone-userid/credentials/" +
                                                           "some-credential");
         assertThat(request.getMethod()).isEqualTo("PUT");
-        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer accessToken");
+        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer some-access-token");
         assertThat(result.get("id").asString()).isEqualTo("some-credential");
         assertThat(result.get("status").asString()).isEqualTo("REVOKED");
         assertThat(result.get("credentialType").get("id").asString())
@@ -295,7 +291,7 @@ public class PingOneCredentialsServiceTest {
         assertThat(request.getUri().toString()).isEqualTo("https://api.pingone.com/v1/environments/" +
                                                           "some-environment-id/users/some-pingone-userid/digitalWallets");
         assertThat(request.getMethod()).isEqualTo("POST");
-        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer accessToken");
+        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer some-access-token");
         assertThat(result.get("id").asString()).isEqualTo("some-wallet-id");
         assertThat(result.get("status").asString()).isEqualTo("PAIRING_REQUIRED");
         assertThat(result.get("pairingSession").get("status").asString())
@@ -346,7 +342,7 @@ public class PingOneCredentialsServiceTest {
                                                           "some-environment-id/users/some-pingone-userid/digitalWallets" +
                                                           "/some-wallet-id");
         assertThat(request.getMethod()).isEqualTo("GET");
-        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer accessToken");
+        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer some-access-token");
         assertThat(result.get("id").asString()).isEqualTo("some-wallet-id");
         assertThat(result.get("status").asString()).isEqualTo("ACTIVE");
         assertThat(result.get("digitalWalletApplication").get("id").asString())
@@ -396,7 +392,7 @@ public class PingOneCredentialsServiceTest {
         assertThat(request.getUri().toString()).isEqualTo("https://api.pingone.com/v1/environments/" +
                                                           "some-environment-id/presentationSessions");
         assertThat(request.getMethod()).isEqualTo("POST");
-        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer accessToken");
+        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer some-access-token");
         assertThat(result.get("id").asString()).isEqualTo("some-session-id");
         assertThat(result.get("status").asString()).isEqualTo("INITIAL");
     }
@@ -447,7 +443,7 @@ public class PingOneCredentialsServiceTest {
         assertThat(request.getUri().toString()).isEqualTo("https://api.pingone.com/v1/environments/" +
                                                           "some-environment-id/presentationSessions");
         assertThat(request.getMethod()).isEqualTo("POST");
-        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer accessToken");
+        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer some-access-token");
         assertThat(result.get("id").asString()).isEqualTo("some-session-id");
         assertThat(result.get("status").asString()).isEqualTo("INITIAL");
     }
@@ -493,7 +489,7 @@ public class PingOneCredentialsServiceTest {
                                                           "some-environment-id/presentationSessions/some-session-id" +
                                                           "/sessionData");
         assertThat(request.getMethod()).isEqualTo("GET");
-        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer accessToken");
+        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer some-access-token");
         assertThat(result.get("id").asString()).isEqualTo("some-session-id");
         assertThat(result.get("status").asString()).isEqualTo("VERIFICATION_SUCCESSFUL");
         assertThat(result.get("verifiedData").get(0).get("data").get("mail").asString())
@@ -521,7 +517,7 @@ public class PingOneCredentialsServiceTest {
                                                           "some-environment-id/users/some-pingone-userid/digitalWallets" +
                                                           "/some-wallet-id");
         assertThat(request.getMethod()).isEqualTo("DELETE");
-        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer accessToken");
+        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer some-access-token");
         assertThat(result);
     }
 
@@ -566,7 +562,7 @@ public class PingOneCredentialsServiceTest {
                                                           "some-environment-id/users/some-pingone-userid/credentials" +
                                                           "/some-credential-id");
         assertThat(request.getMethod()).isEqualTo("POST");
-        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer accessToken");
+        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer some-access-token");
         assertThat(result.equals(Constants.RevokeResult.REVOKED));
 
     }

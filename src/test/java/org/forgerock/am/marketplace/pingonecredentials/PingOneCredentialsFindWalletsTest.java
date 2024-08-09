@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.Optional;
 
 import org.forgerock.json.JsonValue;
-import org.forgerock.oauth2.core.AccessToken;
 import org.forgerock.openam.auth.node.api.Action;
 import org.forgerock.openam.auth.node.api.ExternalRequestContext;
 import org.forgerock.openam.auth.node.api.InputState;
@@ -39,17 +38,14 @@ import org.forgerock.openam.auth.node.api.OutcomeProvider;
 import org.forgerock.openam.auth.node.api.OutputState;
 import org.forgerock.openam.auth.node.api.TreeContext;
 import org.forgerock.openam.core.realms.Realm;
-import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
-import org.forgerock.openam.integration.pingone.PingOneWorkerException;
-import org.forgerock.openam.integration.pingone.PingOneWorkerService;
+import org.forgerock.openam.integration.pingone.api.PingOneWorkerService;
+import org.forgerock.openam.integration.pingone.api.PingOneWorkerException;
 import org.forgerock.openam.test.extensions.LoggerExtension;
 import org.forgerock.util.i18n.PreferredLocales;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -69,10 +65,7 @@ public class PingOneCredentialsFindWalletsTest {
     PingOneWorkerService pingOneWorkerService;
 
     @Mock
-    AccessToken accessToken;
-
-    @Mock
-    PingOneWorkerConfig.Worker worker;
+    PingOneWorkerService.Worker worker;
 
     @Mock
     Realm realm;
@@ -85,7 +78,7 @@ public class PingOneCredentialsFindWalletsTest {
     @BeforeEach
     public void setup() throws Exception {
         given(pingOneWorkerService.getWorker(any(), anyString())).willReturn(Optional.of(worker));
-        given(pingOneWorkerService.getAccessToken(any(), any())).willReturn(accessToken);
+        given(pingOneWorkerService.getAccessTokenId(any(), any())).willReturn("some-access-token");
 
         node = new PingOneCredentialsFindWallets(config, realm, pingOneWorkerService, client);
     }
@@ -301,7 +294,7 @@ public class PingOneCredentialsFindWalletsTest {
 
     @Test
     public void testErrorAccessTokenNull() throws Exception {
-        given(pingOneWorkerService.getAccessToken(any(), any())).willReturn(null);
+        given(pingOneWorkerService.getAccessTokenId(any(), any())).willReturn(null);
 
         // Given
         JsonValue sharedState = json(object(field(REALM, "/realm")));
@@ -317,8 +310,8 @@ public class PingOneCredentialsFindWalletsTest {
     @Test
     public void testPingOneCommunicationFailed() throws Exception {
         // Given
-        given(pingOneWorkerService.getAccessToken(any(), any())).willReturn(null);
-        given(pingOneWorkerService.getAccessToken(realm, worker)).willThrow(new PingOneWorkerException(""));
+        given(pingOneWorkerService.getAccessTokenId(any(), any())).willReturn(null);
+        given(pingOneWorkerService.getAccessTokenId(realm, worker)).willThrow(new PingOneWorkerException(""));
         JsonValue sharedState = json(object(
             field(REALM, "/realm"),
             field(PINGONE_USER_ID_KEY, "some-user-id")

@@ -82,7 +82,7 @@
         </dependency>
         <dependency>
             <groupId>org.forgerock.am</groupId>
-            <artifactId>pingone-service</artifactId>
+            <artifactId>pingone-api</artifactId>
             <version>7.6.0-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>

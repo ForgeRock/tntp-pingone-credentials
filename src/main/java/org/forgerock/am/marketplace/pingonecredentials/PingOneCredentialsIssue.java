@@ -17,8 +17,8 @@ import static org.forgerock.am.marketplace.pingonecredentials.Constants.SUCCESS_
 
 import com.google.inject.assistedinject.Assisted;
 
+import org.apache.commons.lang.StringUtils;
 import org.forgerock.json.JsonValue;
-import org.forgerock.oauth2.core.AccessToken;
 import org.forgerock.openam.annotations.sm.Attribute;
 import org.forgerock.openam.auth.node.api.Action;
 import org.forgerock.openam.auth.node.api.InputState;
@@ -142,6 +142,11 @@ public class PingOneCredentialsIssue implements Node {
             // Get PingOne Access Token
             PingOneWorkerService.Worker worker = config.pingOneWorker();
             String accessToken = pingOneWorkerService.getAccessTokenId(realm, worker);
+
+            if (StringUtils.isBlank(accessToken)) {
+                logger.error("Unable to get access token for PingOne Worker.");
+                return Action.goTo(ERROR_OUTCOME_ID).build();
+            }
 
             JsonValue response = client.credentialIssueRequest(accessToken,
                                                                worker,

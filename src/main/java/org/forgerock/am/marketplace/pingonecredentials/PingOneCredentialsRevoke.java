@@ -18,7 +18,6 @@ import static org.forgerock.am.marketplace.pingonecredentials.Constants.RevokeRe
 
 import com.google.inject.assistedinject.Assisted;
 import org.apache.commons.lang.StringUtils;
-import org.forgerock.oauth2.core.AccessToken;
 import org.forgerock.openam.annotations.sm.Attribute;
 import org.forgerock.openam.auth.node.api.Action;
 import org.forgerock.openam.auth.node.api.InputState;
@@ -27,9 +26,8 @@ import org.forgerock.openam.auth.node.api.NodeState;
 import org.forgerock.openam.auth.node.api.OutcomeProvider;
 import org.forgerock.openam.auth.node.api.StaticOutcomeProvider;
 import org.forgerock.openam.auth.node.api.TreeContext;
-import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
-import org.forgerock.openam.integration.pingone.PingOneWorkerService;
-import org.forgerock.openam.integration.pingone.annotations.PingOneWorker;
+import org.forgerock.openam.integration.pingone.api.PingOneWorker;
+import org.forgerock.openam.integration.pingone.api.PingOneWorkerService;
 import org.forgerock.openam.core.realms.Realm;
 import org.forgerock.util.i18n.PreferredLocales;
 import org.slf4j.Logger;
@@ -70,7 +68,7 @@ public class PingOneCredentialsRevoke implements Node {
          */
         @Attribute(order = 100, requiredValue = true)
         @PingOneWorker
-        PingOneWorkerConfig.Worker pingOneWorker();
+        PingOneWorkerService.Worker pingOneWorker();
 
         /**
          * The shared state attribute containing the PingOne User ID
@@ -137,10 +135,10 @@ public class PingOneCredentialsRevoke implements Node {
             }
 
             // Get PingOne Access Token
-            PingOneWorkerConfig.Worker worker = config.pingOneWorker();
-            AccessToken accessToken = pingOneWorkerService.getAccessToken(realm, worker);
+            PingOneWorkerService.Worker worker = config.pingOneWorker();
+            String accessToken = pingOneWorkerService.getAccessTokenId(realm, worker);
 
-            if (accessToken == null) {
+            if (StringUtils.isBlank(accessToken)) {
                 logger.error("Unable to get access token for PingOne Worker.");
                 return  Action.goTo(ERROR_OUTCOME_ID).build();
             }

@@ -39,7 +39,6 @@ import java.util.List;
 import java.util.Optional;
 
 import org.forgerock.json.JsonValue;
-import org.forgerock.oauth2.core.AccessToken;
 import org.forgerock.openam.auth.node.api.Action;
 import org.forgerock.openam.auth.node.api.ExternalRequestContext;
 import org.forgerock.openam.auth.node.api.InputState;
@@ -49,9 +48,8 @@ import org.forgerock.openam.auth.node.api.TreeContext;
 import org.forgerock.openam.auth.nodes.helpers.LocalizationHelper;
 import org.forgerock.openam.authentication.callbacks.PollingWaitCallback;
 import org.forgerock.openam.core.realms.Realm;
-import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
-import org.forgerock.openam.integration.pingone.PingOneWorkerException;
-import org.forgerock.openam.integration.pingone.PingOneWorkerService;
+import org.forgerock.openam.integration.pingone.api.PingOneWorkerService;
+import org.forgerock.openam.integration.pingone.api.PingOneWorkerException;
 import org.forgerock.openam.test.extensions.LoggerExtension;
 import org.forgerock.util.i18n.PreferredLocales;
 import org.junit.jupiter.api.BeforeEach;
@@ -79,10 +77,7 @@ public class PingOneCredentialsVerificationTest {
     PingOneWorkerService pingOneWorkerService;
 
     @Mock
-    AccessToken accessToken;
-
-    @Mock
-    PingOneWorkerConfig.Worker worker;
+    PingOneWorkerService.Worker worker;
 
     @Mock
     Realm realm;
@@ -98,7 +93,7 @@ public class PingOneCredentialsVerificationTest {
     @BeforeEach
     public void setup() throws Exception {
         given(pingOneWorkerService.getWorker(any(), anyString())).willReturn(Optional.of(worker));
-        given(pingOneWorkerService.getAccessToken(any(), any())).willReturn(accessToken);
+        given(pingOneWorkerService.getAccessTokenId(any(), any())).willReturn("some-access-token");
 
         node = new PingOneCredentialsVerification(config, realm, pingOneWorkerService, client, localizationHelper);
     }
@@ -314,7 +309,7 @@ public class PingOneCredentialsVerificationTest {
 
     @Test
     public void testErrorAccessTokenNull() throws Exception {
-        given(pingOneWorkerService.getAccessToken(any(), any())).willReturn(null);
+        given(pingOneWorkerService.getAccessTokenId(any(), any())).willReturn(null);
         given(config.allowDeliveryMethodSelection()).willReturn(false);
         given(config.deliveryMethod()).willReturn(Constants.VerificationDeliveryMethod.QRCODE);
 
@@ -332,8 +327,8 @@ public class PingOneCredentialsVerificationTest {
     @Test
     public void testPingOneCommunicationFailed() throws Exception {
         // Given
-        given(pingOneWorkerService.getAccessToken(any(), any())).willReturn(null);
-        given(pingOneWorkerService.getAccessToken(realm, worker)).willThrow(new PingOneWorkerException(""));
+        given(pingOneWorkerService.getAccessTokenId(any(), any())).willReturn(null);
+        given(pingOneWorkerService.getAccessTokenId(realm, worker)).willThrow(new PingOneWorkerException(""));
 
         given(config.allowDeliveryMethodSelection()).willReturn(false);
         given(config.deliveryMethod()).willReturn(Constants.VerificationDeliveryMethod.QRCODE);

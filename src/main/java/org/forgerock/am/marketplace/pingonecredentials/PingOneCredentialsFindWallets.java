@@ -27,6 +27,7 @@ import static org.forgerock.json.JsonValue.array;
 import static org.forgerock.json.JsonValue.json;
 
 import com.google.inject.assistedinject.Assisted;
+import org.apache.commons.lang.StringUtils;
 import org.forgerock.json.JsonValue;
 import org.forgerock.openam.annotations.sm.Attribute;
 import org.forgerock.openam.auth.node.api.Action;
@@ -134,7 +135,7 @@ public class PingOneCredentialsFindWallets implements Node {
             PingOneWorkerService.Worker worker = config.pingOneWorker();
             String accessToken = pingOneWorkerService.getAccessTokenId(realm, worker);
 
-            if (accessToken == null) {
+            if (StringUtils.isBlank(accessToken)) {
                 logger.error("Unable to get access token for PingOne Worker.");
                 return Action.goTo(ERROR_OUTCOME_ID).build();
             }

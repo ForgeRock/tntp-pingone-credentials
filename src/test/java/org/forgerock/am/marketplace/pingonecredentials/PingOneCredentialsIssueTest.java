@@ -13,10 +13,8 @@ import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.ERROR_OUTCOME_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.OBJECT_ATTRIBUTES;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_APPLICATION_INSTANCE_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_USER_ID_KEY;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_WALLET_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.SUCCESS_OUTCOME_ID;
 import static org.forgerock.json.JsonValue.field;
 import static org.forgerock.json.JsonValue.json;
@@ -28,14 +26,12 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.when;
 
 import javax.security.auth.callback.Callback;
-import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import org.forgerock.json.JsonValue;
-import org.forgerock.oauth2.core.AccessToken;
 import org.forgerock.openam.auth.node.api.Action;
 import org.forgerock.openam.auth.node.api.ExternalRequestContext;
 import org.forgerock.openam.auth.node.api.InputState;
@@ -43,9 +39,8 @@ import org.forgerock.openam.auth.node.api.OutcomeProvider;
 import org.forgerock.openam.auth.node.api.OutputState;
 import org.forgerock.openam.auth.node.api.TreeContext;
 import org.forgerock.openam.core.realms.Realm;
-import org.forgerock.openam.integration.pingone.PingOneWorkerConfig;
-import org.forgerock.openam.integration.pingone.PingOneWorkerException;
-import org.forgerock.openam.integration.pingone.PingOneWorkerService;
+import org.forgerock.openam.integration.pingone.api.PingOneWorkerService;
+import org.forgerock.openam.integration.pingone.api.PingOneWorkerException;
 import org.forgerock.openam.test.extensions.LoggerExtension;
 import org.forgerock.util.i18n.PreferredLocales;
 import org.junit.jupiter.api.BeforeEach;
@@ -71,10 +66,7 @@ public class PingOneCredentialsIssueTest {
     PingOneWorkerService pingOneWorkerService;
 
     @Mock
-    AccessToken accessToken;
-
-    @Mock
-    PingOneWorkerConfig.Worker worker;
+    PingOneWorkerService.Worker worker;
 
     @Mock
     Realm realm;
@@ -87,7 +79,7 @@ public class PingOneCredentialsIssueTest {
     @BeforeEach
     public void setup() throws Exception {
         given(pingOneWorkerService.getWorker(any(), anyString())).willReturn(Optional.of(worker));
-        given(pingOneWorkerService.getAccessToken(any(), any())).willReturn(accessToken);
+        given(pingOneWorkerService.getAccessTokenId(any(), any())).willReturn("some-access-token");
 
         node = new PingOneCredentialsIssue(config, realm, pingOneWorkerService, client);
     }
@@ -197,7 +189,7 @@ public class PingOneCredentialsIssueTest {
 
     @Test
     public void testErrorAccessTokenNull() throws Exception {
-        given(pingOneWorkerService.getAccessToken(any(), any())).willReturn(null);
+        given(pingOneWorkerService.getAccessTokenId(any(), any())).willReturn(null);
 
         // Given
         JsonValue sharedState = json(object(field(REALM, "/realm")));
@@ -213,8 +205,8 @@ public class PingOneCredentialsIssueTest {
     @Test
     public void testPingOneCommunicationFailed() throws Exception {
         // Given
-        given(pingOneWorkerService.getAccessToken(any(), any())).willReturn(null);
-        given(pingOneWorkerService.getAccessToken(realm, worker)).willThrow(new PingOneWorkerException(""));
+        given(pingOneWorkerService.getAccessTokenId(any(), any())).willReturn(null);
+        given(pingOneWorkerService.getAccessTokenId(realm, worker)).willThrow(new PingOneWorkerException(""));
         JsonValue sharedState = json(object(
             field(REALM, "/realm"),
             field(PINGONE_USER_ID_KEY, "some-user-id")
