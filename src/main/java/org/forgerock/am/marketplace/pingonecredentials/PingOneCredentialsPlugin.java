@@ -65,7 +65,7 @@ public class PingOneCredentialsPlugin extends AbstractNodeAmPlugin {
 	@Override
 	protected Map<String, Iterable<? extends Class<? extends Node>>> getNodesByVersion() {
 		return new ImmutableMap.Builder<String, Iterable<? extends Class<? extends Node>>>()
-                .put("1.0.0", asList(PingOneCredentialsPairWallet.class,
+                .put("1.0.1", asList(PingOneCredentialsPairWallet.class,
                                     PingOneCredentialsIssue.class,
                                     PingOneCredentialsVerification.class,
                                     PingOneCredentialsFindWallets.class,
