@@ -50,6 +50,7 @@ import com.google.common.collect.ImmutableList;
 import com.sun.identity.authentication.callbacks.HiddenValueCallback;
 import com.sun.identity.authentication.callbacks.ScriptTextOutputCallback;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.forgerock.json.JsonValue;
 import org.forgerock.openam.annotations.sm.Attribute;
 import org.forgerock.openam.auth.node.api.Action;
@@ -273,7 +274,7 @@ public class PingOneCredentialsVerification implements Node {
 				int choice = confirmationCallback.get().getSelectedIndex();
 				nodeState.putShared(PINGONE_VERIFICATION_DELIVERY_METHOD_KEY, choice);
 
-				return startVerificationTransaction(context, accessToken, worker, Constants.VerificationDeliveryMethod.fromIndex(choice),
+				return startVerificationTransaction(context, accessToken, worker, VerificationDeliveryMethod.fromIndex(choice),
 				                                    config.credentialType(), getPushMessage(context),
 				                                    config.attributeKeys());
 			}
@@ -298,7 +299,7 @@ public class PingOneCredentialsVerification implements Node {
 				}
 			}
 		} catch (Exception ex) {
-			String stackTrace = org.apache.commons.lang.exception.ExceptionUtils.getStackTrace(ex);
+			String stackTrace = ExceptionUtils.getStackTrace(ex);
 			logger.error(LOGGER_PREFIX + "Exception occurred: ", ex);
 			NodeState nodeState = context.getStateFor(this);
 
@@ -317,10 +318,10 @@ public class PingOneCredentialsVerification implements Node {
 		String sessionId = Objects.requireNonNull(nodeState.get(PINGONE_VERIFICATION_SESSION_KEY)).asString();
 
 		// Determine delivery method
-		Constants.VerificationDeliveryMethod verificationDeliveryMethod;
+		VerificationDeliveryMethod verificationDeliveryMethod;
 		if (config.allowDeliveryMethodSelection()) {
 			int index = Objects.requireNonNull(nodeState.get(PINGONE_VERIFICATION_DELIVERY_METHOD_KEY)).asInteger();
-			verificationDeliveryMethod = Constants.VerificationDeliveryMethod.fromIndex(index);
+			verificationDeliveryMethod = VerificationDeliveryMethod.fromIndex(index);
 		} else {
 			verificationDeliveryMethod = config.deliveryMethod();
 		}
@@ -364,7 +365,8 @@ public class PingOneCredentialsVerification implements Node {
 
 		String qrUrl = ""; // Value will not be used if delivery is not QRCODE
 
-		if(Constants.VerificationDeliveryMethod.QRCODE.equals(deliveryMethod)) {
+
+		if(VerificationDeliveryMethod.QRCODE.equals(deliveryMethod)) {
 			NodeState nodeState = context.getStateFor(this);
 
 			JsonValue customCredentialsPayload = null;
@@ -373,10 +375,17 @@ public class PingOneCredentialsVerification implements Node {
 				customCredentialsPayload = nodeState.get(REQUESTED_CREDENTIALS);
 			}
 
+			Optional<String> digitalWalletApplicationId = Optional.empty();
+
+			if (config.digitalWalletApplicationId().isPresent()) {
+				digitalWalletApplicationId = config.digitalWalletApplicationId();
+			}
+
 			JsonValue response = client.createVerificationRequest(accessToken,
 																  worker,
 			                                                      message,
 			                                                      credentialType,
+																  digitalWalletApplicationId,
 			                                                      attributeKeys,
 			                                                      customCredentialsPayload);
 
@@ -388,7 +397,7 @@ public class PingOneCredentialsVerification implements Node {
 			// Store session ID in shared state
 			nodeState.putShared(PINGONE_VERIFICATION_SESSION_KEY, sessionId);
 			nodeState.putShared(PINGONE_VERIFICATION_TIMEOUT_KEY, TRANSACTION_POLL_INTERVAL);
-		} else if(Constants.VerificationDeliveryMethod.PUSH.equals(deliveryMethod)) {
+		} else if(VerificationDeliveryMethod.PUSH.equals(deliveryMethod)) {
 
 			NodeState nodeState = context.getStateFor(this);
 

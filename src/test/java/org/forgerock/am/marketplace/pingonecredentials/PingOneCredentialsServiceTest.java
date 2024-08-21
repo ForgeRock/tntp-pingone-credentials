@@ -30,6 +30,7 @@ import org.mockito.quality.Strictness;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.forgerock.json.JsonValue.array;
@@ -355,6 +356,8 @@ public class PingOneCredentialsServiceTest {
         String message = "some-message";
         String credentialType = "some-credential-type";
 
+        Optional<String> digitalWalletApplicationId = Optional.of("some-digital-wallet-application-id");
+
         List<String> attributeKeys = new ArrayList<String>();
 
         attributeKeys.add("firstName");
@@ -385,6 +388,7 @@ public class PingOneCredentialsServiceTest {
 
         // When
         JsonValue result = service.createVerificationRequest(accessToken, worker, message, credentialType,
+                                                             digitalWalletApplicationId,
                                                              attributeKeys, customCredentialsPayload);
 
         // Then

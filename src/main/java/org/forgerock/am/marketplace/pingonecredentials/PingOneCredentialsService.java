@@ -25,6 +25,7 @@ import static org.forgerock.json.JsonValue.object;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Optional;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -272,8 +273,10 @@ public class PingOneCredentialsService {
 	 * @throws PingOneCredentialsServiceException When API response != 201
 	 */
 	JsonValue createVerificationRequest(String accessToken, PingOneWorkerService.Worker worker,
-	                                    String message, String credentialType, List<String> attributeKeys,
-	                                    JsonValue customCredentialsPayload) throws PingOneCredentialsServiceException {
+	                                    String message, String credentialType, Optional<String> digitalWalletApplicationId,
+	                                    List<String> attributeKeys, JsonValue customCredentialsPayload)
+		throws PingOneCredentialsServiceException {
+
 		Request request;
 
 		try {
@@ -287,6 +290,13 @@ public class PingOneCredentialsService {
 
 			body.put("message", message);
 			body.put("protocol", "NATIVE");
+
+			if(digitalWalletApplicationId.isPresent()) {
+				JsonValue digitalWalletApplication = json(object(1));
+
+				digitalWalletApplication.put("id", digitalWalletApplicationId.get());
+				body.put("digitalWalletApplication", digitalWalletApplication);
+			}
 
 			JsonValue credential = json(object(1));
 
