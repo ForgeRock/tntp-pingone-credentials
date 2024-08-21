@@ -160,7 +160,7 @@ public class PingOneCredentialsVerificationTest {
                     field("href", "https://shocard.pingone.com/appopen?u=https%3A%2F%2Fapi.pingone.com" +
                                   "%2Fv1%2Fdistributedid%2Frequests%2Fe4974bd1-0094-4586-8e43-28c4409d4bd7")))))));
 
-        when(client.createVerificationRequest(any(), any(), anyString(), anyString(), any(), any())).thenReturn(response);
+        when(client.createVerificationRequest(any(), any(), anyString(), anyString(), any(), any(), any())).thenReturn(response);
         when(client.createVerificationRequestPush(any(), any(), anyString(), anyString(), any(),
                                                   anyString(), anyString(), any())).thenReturn(response);
 
@@ -298,7 +298,7 @@ public class PingOneCredentialsVerificationTest {
         given(config.allowDeliveryMethodSelection()).willReturn(false);
         given(config.deliveryMethod()).willReturn(Constants.VerificationDeliveryMethod.QRCODE);
 
-        when(client.createVerificationRequest(any(), any(), anyString(), anyString(), any(), any())).thenReturn(null);
+        when(client.createVerificationRequest(any(), any(), anyString(), anyString(), any(), any(), any())).thenReturn(null);
 
         // When
         Action result = node.process(getContext(sharedState, transientState, emptyList()));
