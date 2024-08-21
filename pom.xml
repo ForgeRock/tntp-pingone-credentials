@@ -15,7 +15,7 @@
     <artifactId>TNTPPingOneCredentials</artifactId>
 
     <groupId>org.forgerock.am.marketplace</groupId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
     <name>PingOne Credentials Nodes</name>
     <description>Nodes for PingOne Credentials Integration</description>
 
