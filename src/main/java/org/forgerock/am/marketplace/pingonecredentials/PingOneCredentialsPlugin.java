@@ -51,7 +51,7 @@ import com.google.common.collect.ImmutableMap;
  * @since AM 5.5.0
  */
 public class PingOneCredentialsPlugin extends AbstractNodeAmPlugin {
-	protected static final String CURRENT_VERSION = "1.0.0";
+	protected static final String CURRENT_VERSION = "1.0.3";
 	protected static final String LOG_APPENDER = "[Version: " + CURRENT_VERSION + "][Marketplace]";
 	private static final Logger logger = LoggerFactory.getLogger(PingOneCredentialsPlugin.class);
 	private final String LOGGER_PREFIX = "[PingOneCredentialsPlugin]" + PingOneCredentialsPlugin.LOG_APPENDER;
@@ -65,7 +65,7 @@ public class PingOneCredentialsPlugin extends AbstractNodeAmPlugin {
 	@Override
 	protected Map<String, Iterable<? extends Class<? extends Node>>> getNodesByVersion() {
 		return new ImmutableMap.Builder<String, Iterable<? extends Class<? extends Node>>>()
-                .put("1.0.2", asList(PingOneCredentialsPairWallet.class,
+                .put("1.0.3", asList(PingOneCredentialsPairWallet.class,
                                     PingOneCredentialsIssue.class,
                                     PingOneCredentialsVerification.class,
                                     PingOneCredentialsFindWallets.class,
