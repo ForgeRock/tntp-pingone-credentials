@@ -552,7 +552,8 @@ public class PingOneCredentialsVerification implements Node {
 			new InputState(OBJECT_ATTRIBUTES, false),
 			new InputState(config.digitalWalletApplicationId().orElse(""), false),
 			new InputState(PINGONE_APPLICATION_INSTANCE_ID_KEY, false),
-			new InputState(PINGONE_CREDENTIAL_VERIFICATION_KEY, false)
+			new InputState(PINGONE_CREDENTIAL_VERIFICATION_KEY, false),
+			new InputState(REQUESTED_CREDENTIALS, false)
 		};
 	}
 

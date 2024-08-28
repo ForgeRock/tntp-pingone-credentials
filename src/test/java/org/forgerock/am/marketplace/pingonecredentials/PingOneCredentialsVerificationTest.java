@@ -11,15 +11,7 @@ package org.forgerock.am.marketplace.pingonecredentials;
 import static freemarker.template.utility.Collections12.singletonList;
 import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.ERROR_OUTCOME_ID;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.OBJECT_ATTRIBUTES;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_APPLICATION_INSTANCE_ID_KEY;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_VERIFICATION_KEY;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_USER_ID_KEY;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_DELIVERY_METHOD_KEY;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_SESSION_KEY;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_TIMEOUT_KEY;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.TIMEOUT_OUTCOME_ID;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.*;
 import static org.forgerock.json.JsonValue.field;
 import static org.forgerock.json.JsonValue.json;
 import static org.forgerock.json.JsonValue.object;
@@ -259,6 +251,9 @@ public class PingOneCredentialsVerificationTest {
 
         assertThat(inputs[6].name).isEqualTo(PINGONE_CREDENTIAL_VERIFICATION_KEY);
         assertThat(inputs[6].required).isEqualTo(false);
+
+        assertThat(inputs[7].name).isEqualTo(REQUESTED_CREDENTIALS);
+        assertThat(inputs[7].required).isEqualTo(false);
     }
 
     @Test
