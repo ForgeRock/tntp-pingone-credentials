@@ -64,8 +64,8 @@ public class PingOneCredentialsServiceTest {
     public void setup() throws Exception {
         this.accessToken = "some-access-token";
 
-        given(worker.environmentId()).willReturn("some-environment-id");
-        given(worker.apiUrl()).willReturn("https://api.pingone.com/v1");
+        given(worker.environmentId()).willReturn(Optional.of("some-environment-id"));
+        given(worker.apiUrl()).willReturn(Optional.of("https://api.pingone.com/v1"));
 
         service = new PingOneCredentialsService(handler);
     }
