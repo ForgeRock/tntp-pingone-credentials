@@ -15,7 +15,7 @@
     <artifactId>TNTPPingOneCredentials</artifactId>
 
     <groupId>org.forgerock.am.marketplace</groupId>
-    <version>1.0.6</version>
+    <version>1.0.7</version>
     <name>PingOne Credentials Nodes</name>
     <description>Nodes for PingOne Credentials Integration</description>
 
@@ -145,7 +145,11 @@
             <groupId>org.forgerock.am</groupId>
             <artifactId>openam-test-utils</artifactId>
         </dependency>
-    </dependencies>
+            <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
+</dependencies>
     <repositories>
         <repository>
             <snapshots>

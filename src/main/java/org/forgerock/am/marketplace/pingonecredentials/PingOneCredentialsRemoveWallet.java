@@ -16,7 +16,7 @@ import static org.forgerock.am.marketplace.pingonecredentials.Constants.NOT_FOUN
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.ERROR_OUTCOME_ID;
 
 import com.google.inject.assistedinject.Assisted;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.forgerock.openam.annotations.sm.Attribute;
 import org.forgerock.openam.auth.node.api.Action;
 import org.forgerock.openam.auth.node.api.InputState;
@@ -155,7 +155,7 @@ public class PingOneCredentialsRemoveWallet implements Node {
                 return Action.goTo(NOT_FOUND_OUTCOME_ID).build();
             }
         } catch (Exception ex) {
-            String stackTrace = org.apache.commons.lang.exception.ExceptionUtils.getStackTrace(ex);
+            String stackTrace = org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace(ex);
             logger.error(LOGGER_PREFIX + "Exception occurred: ", ex);
             NodeState nodeState = context.getStateFor(this);
 

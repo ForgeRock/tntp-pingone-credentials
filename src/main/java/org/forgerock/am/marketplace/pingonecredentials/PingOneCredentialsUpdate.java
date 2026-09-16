@@ -19,7 +19,7 @@ import static org.forgerock.json.JsonValue.object;
 
 
 import com.google.inject.assistedinject.Assisted;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.forgerock.json.JsonValue;
 import org.forgerock.openam.annotations.sm.Attribute;
 import org.forgerock.openam.auth.node.api.Action;
@@ -186,7 +186,7 @@ public class PingOneCredentialsUpdate implements Node {
 
             return Action.goTo(SUCCESS_OUTCOME_ID).build();
         } catch (Exception ex) {
-            String stackTrace = org.apache.commons.lang.exception.ExceptionUtils.getStackTrace(ex);
+            String stackTrace = org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace(ex);
             logger.error(LOGGER_PREFIX + "Exception occurred: ", ex);
             NodeState nodeState = context.getStateFor(this);
 
