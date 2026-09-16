@@ -1,6 +1,6 @@
 package org.forgerock.am.marketplace.pingonecredentials;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.forgerock.json.JsonValue;
 import org.forgerock.openam.auth.node.api.NodeState;
 

@@ -52,7 +52,7 @@ import javax.security.auth.callback.TextOutputCallback;
 import com.google.common.collect.ImmutableList;
 import com.sun.identity.authentication.callbacks.HiddenValueCallback;
 import com.sun.identity.authentication.callbacks.ScriptTextOutputCallback;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.forgerock.json.JsonValue;
 import org.forgerock.openam.annotations.sm.Attribute;
 import org.forgerock.openam.auth.node.api.Action;
@@ -310,7 +310,7 @@ public class PingOneCredentialsPairWallet implements Node {
                 }
             }
         } catch (Exception ex) {
-            String stackTrace = org.apache.commons.lang.exception.ExceptionUtils.getStackTrace(ex);
+            String stackTrace = org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace(ex);
             logger.error(LOGGER_PREFIX + "Exception occurred: ", ex);
             NodeState nodeState = context.getStateFor(this);
 
