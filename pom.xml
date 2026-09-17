@@ -23,6 +23,7 @@
         <am.version>LATEST</am.version>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
+        <am.version>8.0.0</am.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <forgerockDistMgmtReleasesUrl>https://maven.forgerock.org/artifactory/internal-releases</forgerockDistMgmtReleasesUrl>
     </properties>
@@ -151,29 +152,22 @@
         </dependency>
 </dependencies>
     <repositories>
+        <!-- Per ForgeRock Engineering - This must be hardcoded to a version -->
         <repository>
+            <id>forgerock-build-dependencies</id> 
+            <name>ForgeRock Dependencies Repository</name>
+            <url>https://maven.forgerock.org/artifactory/forgerock-openam-8.0.0-dependencies</url>
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
-            <id>forgerock-private-releases</id>
-            <name>ForgeRock Private Release Repository</name>
-            <url>https://maven.forgerock.org/repo/private-releases</url>
         </repository>
-        <repository>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
+         <repository>
             <id>forgerock-internal-releases</id>
-            <name>ForgeRock Internal Release Repository</name>
+            <name>ForgeRock Internal Releases Repository</name>
             <url>https://maven.forgerock.org/artifactory/internal-releases</url>
-        </repository>
-        <repository>
             <snapshots>
-                <enabled>true</enabled>
+                <enabled>false</enabled>
             </snapshots>
-            <id>forgerock-internal-snapshots</id>
-            <name>ForgeRock Internal Snapshots Repository</name>
-            <url>https://maven.forgerock.org/artifactory/internal-snapshots</url>
         </repository>
     </repositories>
 
