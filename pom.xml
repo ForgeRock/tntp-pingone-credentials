@@ -23,7 +23,6 @@
         <am.version>LATEST</am.version>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
-        <am.version>8.0.0</am.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <forgerockDistMgmtReleasesUrl>https://maven.forgerock.org/artifactory/internal-releases</forgerockDistMgmtReleasesUrl>
     </properties>
