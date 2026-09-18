@@ -15,7 +15,7 @@
  */
 
 def mavenRunDir = "."   // The location of your maven project within the repository. Defaults to current directory.
-def javaVersion = "21"  // Version of java used within the maven build. Defaults to version 17.
+def javaVersion = "25"  // Version of java used within the maven build. Defaults to version 17.
 @Library(['forgerock-pipeline-libs', 'partner-nodes-libs']) _
 buildPartnerNodes()
 
