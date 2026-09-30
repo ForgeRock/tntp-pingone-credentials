@@ -159,6 +159,7 @@ public class ConstantsTest {
         assertThat(Constants.OID4VP_DID_METHOD_KEY).isEqualTo("didMethod");
         assertThat(Constants.OID4VP_ISSUER_FILTER_KEY).isEqualTo("issuerFilter");
         assertThat(Constants.OID4VP_ISSUER_FILTER_DIDS_KEY).isEqualTo("dids");
+        assertThat(Constants.OID4VP_ISSUER_FILTER_ENVIRONMENT_IDS_KEY).isEqualTo("environmentIds");
         assertThat(Constants.OID4VP_TIMEOUT_SECONDS_KEY).isEqualTo("timeoutSeconds");
     }
 

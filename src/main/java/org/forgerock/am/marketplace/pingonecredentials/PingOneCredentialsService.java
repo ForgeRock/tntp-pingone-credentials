@@ -8,11 +8,13 @@
 
 package org.forgerock.am.marketplace.pingonecredentials;
 
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.CREDENTIAL_DATA_PATH;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.CREDENTIALS_PATH;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.DIGITAL_WALLETS_PATH;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.ENVIRONMENTS_PATH;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.OID4VP_DID_METHOD_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.OID4VP_ISSUER_FILTER_DIDS_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.OID4VP_ISSUER_FILTER_ENVIRONMENT_IDS_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.OID4VP_ISSUER_FILTER_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.OID4VP_PROTOCOL_VERSION_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.OID4VP_TIMEOUT_SECONDS_KEY;
@@ -183,6 +185,40 @@ public class PingOneCredentialsService {
 			request.getEntity().setJson(body);
 
 			return getResponse(request, accessToken, "PingOne Credentials Create an OpenID4VCI Offer");
+		} catch (Exception e) {
+			throw new PingOneCredentialsServiceException("Failed PingOne Credentials" + e.getMessage());
+		}
+	}
+
+	/**
+	 * the GET /environments/{{envID}}/users/{{userID}}/openid4vciOffers/{{credentialOfferID}} operation to read one
+	 * OpenID4VCI credential offer, including its lifecycle status
+	 *
+	 * @param accessToken The {@link AccessToken}
+	 * @param worker The worker {@link PingOneWorkerService}
+	 * @param pingOneUID The PingOne user ID
+	 * @param offerId The OpenID4VCI credential offer ID
+	 * @return Json containing the response from the operation
+	 * @throws PingOneCredentialsServiceException When API response is not successful
+	 */
+	JsonValue readCredentialOfferRequest(String accessToken, PingOneWorkerService.Worker worker, String pingOneUID,
+	                                     String offerId)
+		throws PingOneCredentialsServiceException {
+
+		Request request;
+
+		try {
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
+			                USERS_PATH + pingOneUID +
+			                OPENID4VCI_OFFERS_PATH + "/" + offerId;
+
+			URI uri = URI.create(theURI);
+
+			request = new Request();
+			request.setUri(uri).setMethod(HttpConstants.Methods.GET);
+
+			return getResponse(request, accessToken, "PingOne Credentials Read One OpenID4VCI Offer");
 		} catch (Exception e) {
 			throw new PingOneCredentialsServiceException("Failed PingOne Credentials" + e.getMessage());
 		}
@@ -464,6 +500,7 @@ public class PingOneCredentialsService {
 	 * @param protocolVersion The optional OpenID4VP protocol version; omitted when null or blank
 	 * @param didMethod The optional DID method; omitted when null or blank
 	 * @param issuerFilterDids The optional issuer-filter Decentralized Identifiers; omitted when null or empty
+	 * @param issuerFilterEnvironmentIds The optional issuer-filter PingOne environment IDs; omitted when null or empty
 	 * @param timeoutSeconds The optional number of seconds the session remains available; omitted when null
 	 * @return Json containing the response from the operation
 	 * @throws PingOneCredentialsServiceException When API response is not successful
@@ -471,6 +508,7 @@ public class PingOneCredentialsService {
 	JsonValue createVerificationRequestOid4vp(String accessToken, PingOneWorkerService.Worker worker,
 	                                          String message, String credentialType, String protocolVersion,
 	                                          String didMethod, List<String> issuerFilterDids,
+	                                          List<String> issuerFilterEnvironmentIds,
 	                                          Integer timeoutSeconds)
 		throws PingOneCredentialsServiceException {
 
@@ -496,9 +534,17 @@ public class PingOneCredentialsService {
 				body.put(OID4VP_DID_METHOD_KEY, didMethod);
 			}
 
+			JsonValue issuerFilter = json(object(2));
+
 			if (issuerFilterDids != null && !issuerFilterDids.isEmpty()) {
-				JsonValue issuerFilter = json(object(1));
 				issuerFilter.put(OID4VP_ISSUER_FILTER_DIDS_KEY, issuerFilterDids);
+			}
+
+			if (issuerFilterEnvironmentIds != null && !issuerFilterEnvironmentIds.isEmpty()) {
+				issuerFilter.put(OID4VP_ISSUER_FILTER_ENVIRONMENT_IDS_KEY, issuerFilterEnvironmentIds);
+			}
+
+			if (!issuerFilter.asMap().isEmpty()) {
 				body.put(OID4VP_ISSUER_FILTER_KEY, issuerFilter);
 			}
 
@@ -553,6 +599,37 @@ public class PingOneCredentialsService {
 			request.setUri(uri).setMethod(HttpConstants.Methods.GET);
 
 			return getResponse(request, accessToken, "PingOne Credentials Read a Verification Session");
+		} catch (Exception e) {
+			throw new PingOneCredentialsServiceException("Failed PingOne Credentials" + e.getMessage());
+		}
+	}
+
+	/**
+	 * the GET /environments/{{envID}}/presentationSessions/{{sessionID}}/credentialData operation retrieves the
+	 * credential data for the verification session, including per-credential claims and issuer details.
+	 *
+	 * @param accessToken The {@link AccessToken}
+	 * @param worker The worker {@link PingOneWorkerService}
+	 * @param sessionId The verification session ID
+	 * @return Json containing the response from the operation
+	 * @throws PingOneCredentialsServiceException When API response != 201
+	 */
+	JsonValue readVerificationCredentialData(String accessToken, PingOneWorkerService.Worker worker,
+	                                         String sessionId) throws PingOneCredentialsServiceException {
+		Request request;
+
+		try {
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId()  +
+			                PRESENTATION_SESSIONS_PATH + "/" + sessionId +
+			                CREDENTIAL_DATA_PATH;
+
+			URI uri = URI.create(theURI);
+
+			request = new Request();
+			request.setUri(uri).setMethod(HttpConstants.Methods.GET);
+
+			return getResponse(request, accessToken, "PingOne Credentials Read a Verification Session Credential Data");
 		} catch (Exception e) {
 			throw new PingOneCredentialsServiceException("Failed PingOne Credentials" + e.getMessage());
 		}

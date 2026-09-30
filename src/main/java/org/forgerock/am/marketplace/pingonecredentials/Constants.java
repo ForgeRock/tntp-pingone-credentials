@@ -22,13 +22,15 @@ public class Constants {
 	/**
 	 * Additive shared-state/output names for OpenID4VP presentation verification:
 	 * the configured protocol, the OID4VP optional protocol values echoed for the
-	 * session, and the verified data returned by successful presentations.
+	 * session, the verified data returned by successful presentations, and the
+	 * credential data read from the session's credentialData operation.
 	 */
 	public static final String PINGONE_VERIFICATION_PROTOCOL_KEY = "pingOneVerificationProtocol";
 	public static final String PINGONE_VERIFICATION_PROTOCOL_VERSION_KEY = "pingOneVerificationProtocolVersion";
 	public static final String PINGONE_VERIFICATION_DID_METHOD_KEY = "pingOneVerificationDidMethod";
 	public static final String PINGONE_VERIFICATION_ISSUER_FILTER_KEY = "pingOneVerificationIssuerFilter";
 	public static final String PINGONE_VERIFIED_DATA_KEY = "pingOneVerifiedData";
+	public static final String PINGONE_CREDENTIAL_DATA_KEY = "pingOneCredentialData";
 
 	public static final String PINGONE_CREDENTIAL_UPDATE_KEY = "pingOneCredentialUpdate";
 	public static final String PINGONE_CREDENTIAL_ID_KEY = "pingOneCredentialId";
@@ -43,6 +45,7 @@ public class Constants {
 	public static final String PINGONE_CREDENTIAL_OFFER_QR_CODE_URL_KEY = "pingOneCredentialOfferQrCodeUrl";
 	public static final String PINGONE_CREDENTIAL_OFFER_STATUS_KEY = "pingOneCredentialOfferStatus";
 	public static final String PINGONE_CREDENTIAL_OFFER_KEY = "pingOneCredentialOffer";
+	public static final String PINGONE_CREDENTIAL_OFFER_TIMEOUT_KEY = "pingOneCredentialOfferTimeout";
 
 	public static final String ENVIRONMENTS_PATH = "/environments/";
 	public static final String USERS_PATH = "/users/";
@@ -50,6 +53,13 @@ public class Constants {
 	public static final String CREDENTIALS_PATH = "/credentials";
 	public static final String PRESENTATION_SESSIONS_PATH = "/presentationSessions";
 	public static final String SESSION_DATA_PATH = "/sessionData";
+
+	/**
+	 * OpenID4VP presentation session path, appended to
+	 * {@code /environments/{envID}/presentationSessions/{sessionID}} for the
+	 * GET credentialData operation.
+	 */
+	public static final String CREDENTIAL_DATA_PATH = "/credentialData";
 
 	/**
 	 * OpenID4VCI credential offer path, appended to
@@ -79,15 +89,23 @@ public class Constants {
 	public static final String RESPONSE_QRCODE = "qrCode";
 
 	/**
-	 * OpenID4VP presentation session response members: the documented QR link
-	 * and the verified data returned by successful presentations.
+	 * OpenID4VP presentation session response members: the documented QR link,
+	 * the verified data returned by successful presentations, and the credential
+	 * data array returned by the session's credentialData operation.
 	 */
 	public static final String RESPONSE_QR = "qr";
 	public static final String RESPONSE_VERIFIED_DATA = "verifiedData";
+	public static final String RESPONSE_CREDENTIAL_DATA = "credentialData";
 
 	public static final String ACTIVE = "ACTIVE";
 	public static final String PAIRING_REQUIRED = "PAIRING_REQUIRED";
 	public static final String EXPIRED = "EXPIRED";
+
+	/** OpenID4VCI offer status once every credential in the offer has been provisioned to the wallet. */
+	public static final String OFFER_STATUS_COMPLETED = "COMPLETED";
+
+	/** Member of an OpenID4VCI offer holding its expiry timestamp. */
+	public static final String RESPONSE_EXPIRES_AT = "expiresAt";
 	public static final String VERIFICATION_SUCCESSFUL = "VERIFICATION_SUCCESSFUL";
 	public static final String REVOKED = "REVOKED";
 
@@ -126,6 +144,9 @@ public class Constants {
 	public static final String OID4VP_ISSUER_FILTER_KEY = "issuerFilter";
 	/** The issuer-filter member listing the Decentralized Identifiers of acceptable credential issuers. */
 	public static final String OID4VP_ISSUER_FILTER_DIDS_KEY = "dids";
+
+	/** Optional issuer-filter PingOne environment IDs member of an OpenID4VP presentation session request. */
+	public static final String OID4VP_ISSUER_FILTER_ENVIRONMENT_IDS_KEY = "environmentIds";
 	/** The number of seconds the presentation session remains available. */
 	public static final String OID4VP_TIMEOUT_SECONDS_KEY = "timeoutSeconds";
 

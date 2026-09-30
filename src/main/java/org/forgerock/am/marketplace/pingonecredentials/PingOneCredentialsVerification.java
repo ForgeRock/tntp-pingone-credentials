@@ -14,6 +14,7 @@ import static org.forgerock.am.marketplace.pingonecredentials.Constants.EXPIRED;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.INITIAL;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.OBJECT_ATTRIBUTES;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_APPLICATION_INSTANCE_ID_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_DATA_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_VERIFICATION_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_DELIVERY_METHOD_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_SESSION_KEY;
@@ -26,6 +27,7 @@ import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.REQUESTED_CREDENTIALS;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_APPLICATION_INSTANCE;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_APPOPENURL;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_CREDENTIAL_DATA;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_HREF;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_LINKS;
@@ -281,6 +283,16 @@ public class PingOneCredentialsVerification implements Node {
 		List<String> issuerFilter();
 
 		/**
+		 * The optional OpenID4VP issuer-filter PingOne environment IDs, sent as the
+		 * {@code issuerFilter.environmentIds} member. Sent in the presentation session
+		 * request only when the OPENID4VP protocol is selected.
+		 *
+		 * @return The OpenID4VP issuer-filter environment IDs as a List of Strings.
+		 */
+		@Attribute(order = 1850)
+		List<String> issuerFilterEnvironmentIds();
+
+		/**
 		 * The optional number of seconds the OpenID4VP presentation session remains
 		 * available, sent as the documented {@code timeoutSeconds} member. Leave
 		 * empty to let PingOne apply its default. Sent only when the OPENID4VP
@@ -290,6 +302,20 @@ public class PingOneCredentialsVerification implements Node {
 		 */
 		@Attribute(order = 1900)
 		Optional<Integer> oid4vpTimeoutSeconds();
+
+		/**
+		 * When enabled, after a successful OPENID4VP presentation the node calls the
+		 * documented Read Credential Verification Credential Data operation and
+		 * stores the returned {@code credentialData} array (per-credential claims
+		 * and issuer details) in shared state under
+		 * {@code pingOneCredentialData}.
+		 *
+		 * @return true if the credential data should be fetched and stored, false otherwise.
+		 */
+		@Attribute(order = 2000, requiredValue = true)
+		default boolean storeCredentialData() {
+			return false;
+		}
 
 	}
 
@@ -486,6 +512,7 @@ public class PingOneCredentialsVerification implements Node {
 		                                                            config.protocolVersion().orElse(null),
 		                                                            config.didMethod().orElse(null),
 		                                                            config.issuerFilter(),
+		                                                            config.issuerFilterEnvironmentIds(),
 		                                                            config.oid4vpTimeoutSeconds().orElse(null));
 
 		// Retrieve response values
@@ -567,9 +594,29 @@ public class PingOneCredentialsVerification implements Node {
 					nodeState.putShared(PINGONE_VERIFIED_DATA_KEY, response.get(RESPONSE_VERIFIED_DATA).getObject());
 				}
 
+				// The credential data is fetched and stored only when the toggle is
+				// enabled, and only when the response defines the member, so isDefined
+				// reports absence correctly.
+				if (config.storeCredentialData()) {
+					JsonValue credentialDataResponse = client.readVerificationCredentialData(accessToken,
+					                                                                        worker,
+					                                                                        sessionId);
+
+					if (credentialDataResponse.isDefined(RESPONSE_CREDENTIAL_DATA)
+					        && credentialDataResponse.get(RESPONSE_CREDENTIAL_DATA).isNotNull()) {
+						nodeState.putShared(PINGONE_CREDENTIAL_DATA_KEY,
+						                    credentialDataResponse.get(RESPONSE_CREDENTIAL_DATA).getObject());
+					}
+				}
+
 				return buildAction(SUCCESS_OUTCOME_ID, context);
 			case VERIFICATION_FAILED:
 			case EXPIRED:
+				// Keep the terminal session (its status and any documented errors) so a
+				// journey can explain why the verification did not succeed.
+				if (config.storeVerificationResponse()) {
+					nodeState.putShared(PINGONE_CREDENTIAL_VERIFICATION_KEY, response);
+				}
 				return buildAction(ERROR_OUTCOME_ID, context);
 			default:
 				throw new IllegalStateException("Unexpected status returned from PingOne Credential Verification: "
@@ -791,6 +838,7 @@ public class PingOneCredentialsVerification implements Node {
 			new InputState(config.digitalWalletApplicationId().orElse(""), false),
 			new InputState(PINGONE_APPLICATION_INSTANCE_ID_KEY, false),
 			new InputState(PINGONE_CREDENTIAL_VERIFICATION_KEY, false),
+			new InputState(PINGONE_CREDENTIAL_DATA_KEY, false),
 			new InputState(REQUESTED_CREDENTIALS, false)
 		};
 	}
@@ -805,7 +853,8 @@ public class PingOneCredentialsVerification implements Node {
 				new OutputState(PINGONE_VERIFICATION_PROTOCOL_VERSION_KEY),
 				new OutputState(PINGONE_VERIFICATION_DID_METHOD_KEY),
 				new OutputState(PINGONE_VERIFICATION_ISSUER_FILTER_KEY),
-				new OutputState(PINGONE_VERIFIED_DATA_KEY)
+				new OutputState(PINGONE_VERIFIED_DATA_KEY),
+				new OutputState(PINGONE_CREDENTIAL_DATA_KEY)
 			};
 	}
 

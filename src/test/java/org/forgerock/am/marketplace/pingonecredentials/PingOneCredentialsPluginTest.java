@@ -11,6 +11,7 @@ package org.forgerock.am.marketplace.pingonecredentials;
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import java.io.BufferedReader;
@@ -54,7 +55,8 @@ public class PingOneCredentialsPluginTest {
      */
     private static final String LAST_RELEASED_VERSION = "1.0.6";
 
-    private static final List<Class<? extends Node>> REGISTERED_NODES = asList(
+    /** The nodes that shipped before the offer status node was added. */
+    private static final List<Class<? extends Node>> EXISTING_NODES = asList(
         PingOneCredentialsPairWallet.class,
         PingOneCredentialsIssue.class,
         PingOneCredentialsVerification.class,
@@ -62,6 +64,12 @@ public class PingOneCredentialsPluginTest {
         PingOneCredentialsRemoveWallet.class,
         PingOneCredentialsUpdate.class,
         PingOneCredentialsRevoke.class);
+
+    private static final List<Class<? extends Node>> REGISTERED_NODES = new ArrayList<>(EXISTING_NODES);
+
+    static {
+        REGISTERED_NODES.add(PingOneCredentialsOfferStatus.class);
+    }
 
     @Test
     public void amPluginServiceRegistrationIsDiscoverableOnTheClasspath() throws Exception {
@@ -85,7 +93,7 @@ public class PingOneCredentialsPluginTest {
     }
 
     @Test
-    public void registeredNodesCoverTheExistingSevenNodesWithoutAdditions() {
+    public void registeredNodesCoverTheExistingNodesPlusTheOfferStatusNode() {
         PingOneCredentialsPlugin plugin = new PingOneCredentialsPlugin();
         Map<String, Iterable<? extends Class<? extends Node>>> nodesByVersion = plugin.getNodesByVersion();
 
@@ -99,8 +107,9 @@ public class PingOneCredentialsPluginTest {
         }
 
         // The OID4VCI offer and OID4VP verification capabilities are reached
-        // through the already-registered issue and verification nodes; no new
-        // node class is registered and no unrelated node is dropped.
+        // through the already-registered issue and verification nodes. The only
+        // addition is the offer status node, which follows an offer to completion;
+        // no unrelated node is dropped.
         assertThat(registeredNodes).containsExactlyInAnyOrderElementsOf(REGISTERED_NODES);
         assertThat(registeredNodes)
             .contains(PingOneCredentialsIssue.class, PingOneCredentialsVerification.class);
@@ -171,9 +180,12 @@ public class PingOneCredentialsPluginTest {
 
         plugin.upgrade(LAST_RELEASED_VERSION);
 
-        for (Class<? extends Node> nodeClass : REGISTERED_NODES) {
+        for (Class<? extends Node> nodeClass : EXISTING_NODES) {
             verify(pluginTools).upgradeAuthNode(nodeClass);
         }
+        // The offer status node is new in this version, so it is installed, not upgraded.
+        verify(pluginTools).installAuthNode(PingOneCredentialsOfferStatus.class);
+        verify(pluginTools, never()).upgradeAuthNode(PingOneCredentialsOfferStatus.class);
     }
 
     @Test

@@ -243,6 +243,7 @@ public class PingOneCredentialsVerificationTest {
         given(config.protocolVersion()).willReturn(Optional.of("JWT-VC-Presentation-Profile-v0.0.1"));
         given(config.didMethod()).willReturn(Optional.of("JWK"));
         given(config.issuerFilter()).willReturn(List.of("did:web:some-issuer.example"));
+        given(config.issuerFilterEnvironmentIds()).willReturn(List.of("some-environment-id"));
         given(config.oid4vpTimeoutSeconds()).willReturn(Optional.of(30));
         given(config.storeVerificationResponse()).willReturn(true);
         given(localizationHelper.getLocalizedMessage(any(), any(), any(), anyString()))
@@ -259,7 +260,7 @@ public class PingOneCredentialsVerificationTest {
                                   "presentationSessions%2Fsome-presentation-id")))))));
 
         when(client.createVerificationRequestOid4vp(any(), any(), anyString(), anyString(), any(), any(),
-                                                    any(), any())).thenReturn(response);
+                                                    any(), any(), any())).thenReturn(response);
 
         // When
         Action result = node.process(getContext(sharedState, json(object()), emptyList()));
@@ -305,6 +306,7 @@ public class PingOneCredentialsVerificationTest {
                                                        org.mockito.ArgumentMatchers.eq("JWT-VC-Presentation-Profile-v0.0.1"),
                                                        org.mockito.ArgumentMatchers.eq("JWK"),
                                                        org.mockito.ArgumentMatchers.eq(List.of("did:web:some-issuer.example")),
+                                                       org.mockito.ArgumentMatchers.eq(List.of("some-environment-id")),
                                                        org.mockito.ArgumentMatchers.eq(30));
     }
 
@@ -328,7 +330,7 @@ public class PingOneCredentialsVerificationTest {
                                   "presentationSessions%2Fsome-presentation-id")))))));
 
         when(client.createVerificationRequestOid4vp(any(), any(), anyString(), anyString(), any(), any(),
-                                                    any(), any())).thenReturn(response);
+                                                    any(), any(), any())).thenReturn(response);
 
         // When
         node.process(getContext(sharedState, json(object()), emptyList()));
@@ -346,6 +348,7 @@ public class PingOneCredentialsVerificationTest {
         verify(client).createVerificationRequestOid4vp(any(), any(), anyString(), anyString(),
                                                        org.mockito.ArgumentMatchers.isNull(),
                                                        org.mockito.ArgumentMatchers.isNull(),
+                                                       org.mockito.ArgumentMatchers.eq(Collections.emptyList()),
                                                        org.mockito.ArgumentMatchers.eq(Collections.emptyList()),
                                                        org.mockito.ArgumentMatchers.isNull());
     }
@@ -384,6 +387,38 @@ public class PingOneCredentialsVerificationTest {
 
         // Then
         assertThat(result.outcome).isEqualTo(expectedOutcome);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"VERIFICATION_FAILED", "EXPIRED"})
+    public void testOid4vpTerminalFailureKeepsTheSessionWithItsErrors(String status) throws Exception {
+        // Given
+        JsonValue sharedState = json(object(
+            field(REALM, "/realm"),
+            field(PINGONE_VERIFICATION_SESSION_KEY, "some-session-id"),
+            field(PINGONE_VERIFICATION_TIMEOUT_KEY, 5000)));
+
+        given(config.protocol()).willReturn(Constants.VerificationProtocol.OPENID4VP);
+        given(config.timeout()).willReturn(Duration.ofSeconds(120));
+        given(config.storeVerificationResponse()).willReturn(true);
+
+        JsonValue response = json(object(
+            field("id", "some-session-id"),
+            field("status", status),
+            field("errors", array(object(
+                field("code", "INVALID_CREDENTIAL"))))));
+
+        when(client.readVerificationSession(any(), any(), anyString())).thenReturn(response);
+
+        // When
+        Action result = node.process(getContext(sharedState, json(object()), singletonList(mock(PollingWaitCallback.class))));
+
+        // Then
+        assertThat(result.outcome).isEqualTo("error");
+        assertThat(sharedState.get(PINGONE_CREDENTIAL_VERIFICATION_KEY).get("status").asString()).isEqualTo(status);
+        assertThat(sharedState.get(PINGONE_CREDENTIAL_VERIFICATION_KEY).get("errors").get(0).get("code").asString())
+            .isEqualTo("INVALID_CREDENTIAL");
+        assertThat(sharedState.isDefined(PINGONE_VERIFIED_DATA_KEY)).isFalse();
     }
 
     @Test
@@ -450,6 +485,113 @@ public class PingOneCredentialsVerificationTest {
         assertThat(result.outcome).isEqualTo(SUCCESS_OUTCOME_ID);
         assertThat(sharedState.isDefined(PINGONE_VERIFIED_DATA_KEY)).isFalse();
         assertThat(sharedState.isDefined(PINGONE_CREDENTIAL_VERIFICATION_KEY)).isFalse();
+    }
+
+    @Test
+    public void testOid4vpVerificationSuccessfulStoresCredentialData() throws Exception {
+        // Given
+        JsonValue sharedState = json(object(
+            field(REALM, "/realm"),
+            field(PINGONE_VERIFICATION_SESSION_KEY, "some-session-id"),
+            field(PINGONE_VERIFICATION_TIMEOUT_KEY, 5000)));
+
+        given(config.protocol()).willReturn(Constants.VerificationProtocol.OPENID4VP);
+        given(config.timeout()).willReturn(Duration.ofSeconds(120));
+        given(config.storeVerificationResponse()).willReturn(true);
+        given(config.storeCredentialData()).willReturn(true);
+
+        JsonValue response = json(object(
+            field("id", "some-session-id"),
+            field("status", "VERIFICATION_SUCCESSFUL")));
+
+        JsonValue credentialDataResponse = json(object(
+            field("id", "some-session-id"),
+            field("status", "VERIFICATION_SUCCESSFUL"),
+            field("credentialData", array(object(
+                field("type", "VerifiedEmployee"),
+                field("data", array(
+                    object(
+                        field("key", "mail"),
+                        field("value", "johndoe@example.com")))),
+                field("issuerId", "9536b3bf-556c-4ed5-a357-5da900ce17d1"),
+                field("issuerName", "Issuer Name"))))));
+
+        when(client.readVerificationSession(any(), any(), anyString())).thenReturn(response);
+        when(client.readVerificationCredentialData(any(), any(), anyString())).thenReturn(credentialDataResponse);
+
+        // When
+        Action result = node.process(getContext(sharedState, json(object()), singletonList(mock(PollingWaitCallback.class))));
+
+        // Then
+        assertThat(result.outcome).isEqualTo(SUCCESS_OUTCOME_ID);
+        verify(client).readVerificationCredentialData(any(), any(), anyString());
+        assertThat(sharedState.get(PINGONE_CREDENTIAL_DATA_KEY).get(0).get("type").asString())
+            .isEqualTo("VerifiedEmployee");
+        assertThat(sharedState.get(PINGONE_CREDENTIAL_DATA_KEY).get(0).get("data").get(0).get("value").asString())
+            .isEqualTo("johndoe@example.com");
+        assertThat(sharedState.get(PINGONE_CREDENTIAL_DATA_KEY).get(0).get("issuerName").asString())
+            .isEqualTo("Issuer Name");
+    }
+
+    @Test
+    public void testOid4vpVerificationSuccessfulWithoutStoreCredentialDataSkipsCredentialDataCall() throws Exception {
+        // Given
+        JsonValue sharedState = json(object(
+            field(REALM, "/realm"),
+            field(PINGONE_VERIFICATION_SESSION_KEY, "some-session-id"),
+            field(PINGONE_VERIFICATION_TIMEOUT_KEY, 5000)));
+
+        given(config.protocol()).willReturn(Constants.VerificationProtocol.OPENID4VP);
+        given(config.timeout()).willReturn(Duration.ofSeconds(120));
+        given(config.storeVerificationResponse()).willReturn(false);
+        given(config.storeCredentialData()).willReturn(false);
+
+        JsonValue response = json(object(
+            field("id", "some-session-id"),
+            field("status", "VERIFICATION_SUCCESSFUL")));
+
+        when(client.readVerificationSession(any(), any(), anyString())).thenReturn(response);
+
+        // When
+        Action result = node.process(getContext(sharedState, json(object()), singletonList(mock(PollingWaitCallback.class))));
+
+        // Then
+        assertThat(result.outcome).isEqualTo(SUCCESS_OUTCOME_ID);
+        assertThat(sharedState.isDefined(PINGONE_CREDENTIAL_DATA_KEY)).isFalse();
+        verify(client, never()).readVerificationCredentialData(any(), any(), anyString());
+    }
+
+    @Test
+    public void testOid4vpVerificationSuccessfulWithoutCredentialDataMemberLeavesKeyAbsent() throws Exception {
+        // Given
+        JsonValue sharedState = json(object(
+            field(REALM, "/realm"),
+            field(PINGONE_VERIFICATION_SESSION_KEY, "some-session-id"),
+            field(PINGONE_VERIFICATION_TIMEOUT_KEY, 5000)));
+
+        given(config.protocol()).willReturn(Constants.VerificationProtocol.OPENID4VP);
+        given(config.timeout()).willReturn(Duration.ofSeconds(120));
+        given(config.storeVerificationResponse()).willReturn(false);
+        given(config.storeCredentialData()).willReturn(true);
+
+        JsonValue response = json(object(
+            field("id", "some-session-id"),
+            field("status", "VERIFICATION_SUCCESSFUL")));
+
+        JsonValue credentialDataResponse = json(object(
+            field("id", "some-session-id"),
+            field("status", "VERIFICATION_SUCCESSFUL")));
+
+        when(client.readVerificationSession(any(), any(), anyString())).thenReturn(response);
+        when(client.readVerificationCredentialData(any(), any(), anyString())).thenReturn(credentialDataResponse);
+
+        // When
+        Action result = node.process(getContext(sharedState, json(object()), singletonList(mock(PollingWaitCallback.class))));
+
+        // Then
+        assertThat(result.outcome).isEqualTo(SUCCESS_OUTCOME_ID);
+        verify(client).readVerificationCredentialData(any(), any(), anyString());
+        assertThat(sharedState.isDefined(PINGONE_CREDENTIAL_DATA_KEY)).isFalse();
     }
 
     @Test
@@ -530,7 +672,7 @@ public class PingOneCredentialsVerificationTest {
         assertThat(result.outcome).isEqualTo(ERROR_OUTCOME_ID);
         verify(client, never()).readVerificationSession(any(), any(), anyString());
         verify(client, never()).createVerificationRequestOid4vp(any(), any(), anyString(), anyString(), any(), any(),
-                                                                any(), any());
+                                                                any(), any(), any());
     }
 
     @Test
@@ -545,7 +687,7 @@ public class PingOneCredentialsVerificationTest {
             .willReturn("Some localized text");
 
         when(client.createVerificationRequestOid4vp(any(), any(), anyString(), anyString(), any(), any(),
-                                                    any(), any()))
+                                                    any(), any(), any()))
             .thenThrow(new PingOneCredentialsServiceException("Failed PingOne Credentials"));
 
         // When
@@ -571,7 +713,7 @@ public class PingOneCredentialsVerificationTest {
             field("status", "INITIAL")));
 
         when(client.createVerificationRequestOid4vp(any(), any(), anyString(), anyString(), any(), any(),
-                                                    any(), any())).thenReturn(response);
+                                                    any(), any(), any())).thenReturn(response);
 
         // When
         Action result = node.process(getContext(sharedState, json(object()), emptyList()));
@@ -603,7 +745,7 @@ public class PingOneCredentialsVerificationTest {
             field("status", "INITIAL")));
 
         when(client.createVerificationRequestOid4vp(any(), any(), anyString(), anyString(), any(), any(),
-                                                    any(), any())).thenReturn(response);
+                                                    any(), any(), any())).thenReturn(response);
 
         // When
         Action result = node.process(getContext(sharedState, json(object()), emptyList()));
@@ -643,7 +785,7 @@ public class PingOneCredentialsVerificationTest {
         // Then
         assertThat(result.outcome).isEqualTo(ERROR_OUTCOME_ID);
         verify(client, never()).createVerificationRequestOid4vp(any(), any(), anyString(), anyString(), any(), any(),
-                                                                any(), any());
+                                                                any(), any(), any());
         assertThat(sharedState.isDefined(PINGONE_VERIFICATION_SESSION_KEY)).isFalse();
     }
 
@@ -682,7 +824,7 @@ public class PingOneCredentialsVerificationTest {
         assertThat(sharedState.isDefined(PINGONE_VERIFIED_DATA_KEY)).isFalse();
 
         verify(client, never()).createVerificationRequestOid4vp(any(), any(), anyString(), anyString(), any(), any(),
-                                                                any(), any());
+                                                                any(), any(), any());
     }
 
     @Test
@@ -712,8 +854,11 @@ public class PingOneCredentialsVerificationTest {
         assertThat(inputs[6].name).isEqualTo(PINGONE_CREDENTIAL_VERIFICATION_KEY);
         assertThat(inputs[6].required).isEqualTo(false);
 
-        assertThat(inputs[7].name).isEqualTo(REQUESTED_CREDENTIALS);
+        assertThat(inputs[7].name).isEqualTo(PINGONE_CREDENTIAL_DATA_KEY);
         assertThat(inputs[7].required).isEqualTo(false);
+
+        assertThat(inputs[8].name).isEqualTo(REQUESTED_CREDENTIALS);
+        assertThat(inputs[8].required).isEqualTo(false);
     }
 
     @Test
@@ -728,6 +873,7 @@ public class PingOneCredentialsVerificationTest {
         assertThat(outputs[5].name).isEqualTo(PINGONE_VERIFICATION_DID_METHOD_KEY);
         assertThat(outputs[6].name).isEqualTo(PINGONE_VERIFICATION_ISSUER_FILTER_KEY);
         assertThat(outputs[7].name).isEqualTo(PINGONE_VERIFIED_DATA_KEY);
+        assertThat(outputs[8].name).isEqualTo(PINGONE_CREDENTIAL_DATA_KEY);
     }
 
     @Test

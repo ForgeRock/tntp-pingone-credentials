@@ -707,7 +707,7 @@ public class PingOneCredentialsServiceTest {
 
         // When
         JsonValue result = service.createVerificationRequestOid4vp(accessToken, worker, message, credentialType,
-                                                                   protocolVersion, didMethod, issuerFilterDids,
+                                                                   protocolVersion, didMethod, issuerFilterDids, List.of("some-environment-id"),
                                                                    timeoutSeconds);
 
         // Then
@@ -763,7 +763,7 @@ public class PingOneCredentialsServiceTest {
 
         // When
         service.createVerificationRequestOid4vp(accessToken, worker, message, credentialType,
-                                                null, null, Collections.emptyList(), null);
+                                                null, null, Collections.emptyList(), Collections.emptyList(), null);
 
         // Then
         Request request = captor.getAllValues().get(0);
@@ -784,6 +784,108 @@ public class PingOneCredentialsServiceTest {
     }
 
     @Test
+    public void testReadCredentialOfferRequest() throws Exception {
+        // Given
+        JsonValue expected = json(object(
+            field("id", "some-offer-id"),
+            field("status", "ISSUING"),
+            field("credentialOfferUrl", "https://auth.pingone.com/some-environment-id/credentialOffer/some-offer-id"),
+            field("expiresAt", "2026-09-29T10:30:00.000Z")));
+
+        ArgumentCaptor<Request> captor = ArgumentCaptor.forClass(Request.class);
+        Response response = new Response(Status.OK);
+        response.setEntity(expected);
+
+        given(promise.getOrThrow()).willReturn(response);
+        given(handler.handle(any(), captor.capture())).willReturn(promise);
+
+        // When
+        JsonValue result = service.readCredentialOfferRequest(accessToken, worker, "some-pingone-userid",
+                                                              "some-offer-id");
+
+        // Then
+        Request request = captor.getAllValues().get(0);
+        assertThat(request.getUri().toString()).isEqualTo("https://api.pingone.com/v1/environments/" +
+                                                          "some-environment-id/users/some-pingone-userid/" +
+                                                          "openid4vciOffers/some-offer-id");
+        assertThat(request.getMethod()).isEqualTo("GET");
+        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer some-access-token");
+        assertThat(request.getEntity().getString()).isEmpty();
+
+        assertThat(result.get("id").asString()).isEqualTo("some-offer-id");
+        assertThat(result.get("status").asString()).isEqualTo("ISSUING");
+    }
+
+    @Test
+    public void testReadCredentialOfferRequestFailureThrowsServiceException() throws Exception {
+        // Given
+        Response response = new Response(Status.NOT_FOUND);
+        response.setEntity(json(object(field("code", "NOT_FOUND"))));
+
+        given(promise.getOrThrow()).willReturn(response);
+        given(handler.handle(any(), any())).willReturn(promise);
+
+        // When / Then
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                () -> service.readCredentialOfferRequest(accessToken, worker, "some-pingone-userid", "some-offer-id"))
+            .isInstanceOf(PingOneCredentialsServiceException.class);
+    }
+
+    @Test
+    public void testCreateVerificationRequestOid4vpSerializesIssuerFilterEnvironmentIdsOnly() throws Exception {
+        // Given
+        JsonValue expected = json(object(
+            field("id", "some-session-id"),
+            field("status", "INITIAL")));
+
+        ArgumentCaptor<Request> captor = ArgumentCaptor.forClass(Request.class);
+        Response response = new Response(Status.OK);
+        response.setEntity(expected);
+
+        given(promise.getOrThrow()).willReturn(response);
+        given(handler.handle(any(), captor.capture())).willReturn(promise);
+
+        // When
+        service.createVerificationRequestOid4vp(accessToken, worker, "some-message", "some-credential-type",
+                                                null, null, Collections.emptyList(),
+                                                List.of("some-environment-id-1", "some-environment-id-2"), null);
+
+        // Then
+        JsonValue body = json(Json.readJson(captor.getAllValues().get(0).getEntity().getString()));
+        assertThat(body.keys()).containsExactlyInAnyOrder("message", "protocol", "issuerFilter",
+                                                          "requestedCredentials");
+        assertThat(body.get("issuerFilter").keys()).containsExactly("environmentIds");
+        assertThat(body.get("issuerFilter").get("environmentIds").asList())
+            .containsExactly("some-environment-id-1", "some-environment-id-2");
+    }
+
+    @Test
+    public void testCreateVerificationRequestOid4vpSerializesIssuerFilterDidsAndEnvironmentIds() throws Exception {
+        // Given
+        JsonValue expected = json(object(
+            field("id", "some-session-id"),
+            field("status", "INITIAL")));
+
+        ArgumentCaptor<Request> captor = ArgumentCaptor.forClass(Request.class);
+        Response response = new Response(Status.OK);
+        response.setEntity(expected);
+
+        given(promise.getOrThrow()).willReturn(response);
+        given(handler.handle(any(), captor.capture())).willReturn(promise);
+
+        // When
+        service.createVerificationRequestOid4vp(accessToken, worker, "some-message", "some-credential-type",
+                                                null, null, List.of("did:web:some-issuer.example"),
+                                                List.of("some-environment-id"), null);
+
+        // Then
+        JsonValue body = json(Json.readJson(captor.getAllValues().get(0).getEntity().getString()));
+        assertThat(body.get("issuerFilter").keys()).containsExactlyInAnyOrder("dids", "environmentIds");
+        assertThat(body.get("issuerFilter").get("dids").asList()).containsExactly("did:web:some-issuer.example");
+        assertThat(body.get("issuerFilter").get("environmentIds").asList()).containsExactly("some-environment-id");
+    }
+
+    @Test
     public void testCreateVerificationRequestOid4vpFailureThrowsServiceException() throws Exception {
         // Given
         Response response = new Response(Status.BAD_REQUEST);
@@ -796,7 +898,7 @@ public class PingOneCredentialsServiceTest {
         org.assertj.core.api.Assertions.assertThatThrownBy(
                 () -> service.createVerificationRequestOid4vp(accessToken, worker, "some-message",
                                                               "some-credential-type", null, null,
-                                                              Collections.emptyList(), null))
+                                                              Collections.emptyList(), Collections.emptyList(), null))
             .isInstanceOf(PingOneCredentialsServiceException.class);
     }
 
@@ -846,6 +948,75 @@ public class PingOneCredentialsServiceTest {
         assertThat(result.get("status").asString()).isEqualTo("VERIFICATION_SUCCESSFUL");
         assertThat(result.get("verifiedData").get(0).get("data").get("mail").asString())
             .isEqualTo("example@email.com");
+    }
+
+    @Test
+    public void testReadVerificationCredentialData() throws Exception {
+        // Given
+        String sessionId = "some-session-id";
+
+        JsonValue expected = json(
+            object(
+                field("_links", object(
+                    field("self", object(
+                        field("href", "https://api.pingone.com/v1/environments/abfba8f6-49eb-49f5-a5d9-80ad5c98f9f6/" +
+                                      "presentationSessions/a8104f80-1954-41b6-b325-23992d0c66d6/credentialData"))))),
+                field("id", "some-session-id"),
+                field("status", "VERIFICATION_SUCCESSFUL"),
+                field("credentialData", array(object(
+                    field("type", "VerifiedEmployee"),
+                    field("data", array(
+                        object(
+                            field("key", "displayName"),
+                            field("value", "John Doe")),
+                        object(
+                            field("key", "mail"),
+                            field("value", "johndoe@example.com")))),
+                    field("issuerId", "9536b3bf-556c-4ed5-a357-5da900ce17d1"),
+                    field("issuerName", "Issuer Name"))))));
+
+        ArgumentCaptor<Request> captor = ArgumentCaptor.forClass(Request.class);
+        Response response = new Response(Status.OK);
+        response.setEntity(expected);
+
+        given(promise.getOrThrow()).willReturn(response);
+        given(handler.handle(any(), captor.capture())).willReturn(promise);
+
+        // When
+        JsonValue result = service.readVerificationCredentialData(accessToken, worker, sessionId);
+
+        // Then
+        Request request = captor.getAllValues().get(0);
+        assertThat(request.getUri().toString()).isEqualTo("https://api.pingone.com/v1/environments/" +
+                                                          "some-environment-id/presentationSessions/some-session-id" +
+                                                          "/credentialData");
+        assertThat(request.getMethod()).isEqualTo("GET");
+        assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer some-access-token");
+        assertThat(result.get("id").asString()).isEqualTo("some-session-id");
+        assertThat(result.get("status").asString()).isEqualTo("VERIFICATION_SUCCESSFUL");
+        assertThat(result.get("credentialData").get(0).get("type").asString()).isEqualTo("VerifiedEmployee");
+        assertThat(result.get("credentialData").get(0).get("data").get(0).get("key").asString())
+            .isEqualTo("displayName");
+        assertThat(result.get("credentialData").get(0).get("data").get(0).get("value").asString())
+            .isEqualTo("John Doe");
+        assertThat(result.get("credentialData").get(0).get("data").get(1).get("value").asString())
+            .isEqualTo("johndoe@example.com");
+        assertThat(result.get("credentialData").get(0).get("issuerName").asString()).isEqualTo("Issuer Name");
+    }
+
+    @Test
+    public void testReadVerificationCredentialDataFailureThrowsServiceException() throws Exception {
+        // Given
+        Response response = new Response(Status.NOT_FOUND);
+        response.setEntity(json(object(field("code", "NOT_FOUND"))));
+
+        given(promise.getOrThrow()).willReturn(response);
+        given(handler.handle(any(), any())).willReturn(promise);
+
+        // When / Then
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                () -> service.readVerificationCredentialData(accessToken, worker, "some-session-id"))
+            .isInstanceOf(PingOneCredentialsServiceException.class);
     }
 
     @Test
