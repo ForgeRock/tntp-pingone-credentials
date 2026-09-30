@@ -51,7 +51,7 @@ import com.google.common.collect.ImmutableMap;
  * @since AM 5.5.0
  */
 public class PingOneCredentialsPlugin extends AbstractNodeAmPlugin {
-	protected static final String CURRENT_VERSION = "1.0.8";
+	protected static final String CURRENT_VERSION = "1.0.9";
 	protected static final String LOG_APPENDER = "[Version: " + CURRENT_VERSION + "][Marketplace]";
 	private static final Logger logger = LoggerFactory.getLogger(PingOneCredentialsPlugin.class);
 	private final String LOGGER_PREFIX = "[PingOneCredentialsPlugin]" + PingOneCredentialsPlugin.LOG_APPENDER;
@@ -73,6 +73,7 @@ public class PingOneCredentialsPlugin extends AbstractNodeAmPlugin {
                                     PingOneCredentialsUpdate.class,
                                     PingOneCredentialsRevoke.class))
                 .put("1.0.8", asList(PingOneCredentialsOfferStatus.class))
+                .put("1.0.9", asList(PingOneCredentialsVerification.class))
                 .build();
 	}
 
