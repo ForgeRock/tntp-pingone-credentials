@@ -11,7 +11,16 @@ package org.forgerock.am.marketplace.pingonecredentials;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.CREDENTIALS_PATH;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.DIGITAL_WALLETS_PATH;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.ENVIRONMENTS_PATH;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.OID4VP_DID_METHOD_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.OID4VP_ISSUER_FILTER_DIDS_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.OID4VP_ISSUER_FILTER_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.OID4VP_PROTOCOL_VERSION_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.OID4VP_TIMEOUT_SECONDS_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.OFFER_CREDENTIALS_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.OFFER_GRANT_TYPES_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.OPENID4VCI_OFFERS_PATH;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PRESENTATION_SESSIONS_PATH;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PROTOCOL_OPENID4VP;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_STATUS;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.REVOKED;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.REVOKE_CONTENT_TYPE;
@@ -31,6 +40,7 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 
+import org.apache.commons.lang3.StringUtils;
 import org.forgerock.http.Handler;
 import org.forgerock.http.header.AuthorizationHeader;
 import org.forgerock.http.header.ContentTypeHeader;
@@ -127,6 +137,52 @@ public class PingOneCredentialsService {
 			request.getEntity().setJson(credentialBody);
 
 			return getResponse(request, accessToken, "PingOne Credentials Issue a User Credential");
+		} catch (Exception e) {
+			throw new PingOneCredentialsServiceException("Failed PingOne Credentials" + e.getMessage());
+		}
+	}
+
+	/**
+	 * the POST /environments/{{envID}}/users/{{userID}}/openid4vciOffers operation to initiate an OpenID4VCI
+	 * credential offer for a PingOne user
+	 *
+	 * @param accessToken The {@link AccessToken}
+	 * @param worker The worker {@link PingOneWorkerService}
+	 * @param pingOneUID The PingOne user ID
+	 * @param credentialTypeIds The optional credential type IDs to include in the offer; omitted when null or empty
+	 * @param grantTypes The optional OAuth2 grant types for the offer; omitted when null or empty
+	 * @return Json containing the response from the operation
+	 * @throws PingOneCredentialsServiceException When API response is not successful
+	 */
+	JsonValue createCredentialOfferRequest(String accessToken, PingOneWorkerService.Worker worker, String pingOneUID,
+	                                       List<String> credentialTypeIds, List<String> grantTypes)
+		throws PingOneCredentialsServiceException {
+
+		Request request;
+
+		try {
+			String theURI = worker.apiUrl().orElseThrow() +
+			                ENVIRONMENTS_PATH + worker.environmentId().orElseThrow() +
+			                USERS_PATH + pingOneUID +
+			                OPENID4VCI_OFFERS_PATH;
+
+			URI uri = URI.create(theURI);
+
+			JsonValue body = json(object());
+
+			if (credentialTypeIds != null && !credentialTypeIds.isEmpty()) {
+				body.put(OFFER_CREDENTIALS_KEY, credentialTypeIds);
+			}
+
+			if (grantTypes != null && !grantTypes.isEmpty()) {
+				body.put(OFFER_GRANT_TYPES_KEY, grantTypes);
+			}
+
+			request = new Request();
+			request.setUri(uri).setMethod(HttpConstants.Methods.POST);
+			request.getEntity().setJson(body);
+
+			return getResponse(request, accessToken, "PingOne Credentials Create an OpenID4VCI Offer");
 		} catch (Exception e) {
 			throw new PingOneCredentialsServiceException("Failed PingOne Credentials" + e.getMessage());
 		}
@@ -391,6 +447,81 @@ public class PingOneCredentialsService {
 				request.getEntity().setJson(body);
 
 			return getResponse(request, accessToken, "PingOne Credentials Create Push Verification session");
+		} catch (Exception e) {
+			throw new PingOneCredentialsServiceException("Failed PingOne Credentials" + e.getMessage());
+		}
+	}
+
+	/**
+	 * the POST /environments/{{envID}}/presentationSessions operation begins a verification presentation session
+	 * using the OpenID4VP protocol. OpenID4VP permits exactly one requested credential type and does not use the
+	 * Native selective-disclosure {@code keys} semantics.
+	 *
+	 * @param accessToken The {@link AccessToken}
+	 * @param worker The worker {@link PingOneWorkerService}
+	 * @param message The message to display during verification
+	 * @param credentialType The single credential type to verify
+	 * @param protocolVersion The optional OpenID4VP protocol version; omitted when null or blank
+	 * @param didMethod The optional DID method; omitted when null or blank
+	 * @param issuerFilterDids The optional issuer-filter Decentralized Identifiers; omitted when null or empty
+	 * @param timeoutSeconds The optional number of seconds the session remains available; omitted when null
+	 * @return Json containing the response from the operation
+	 * @throws PingOneCredentialsServiceException When API response is not successful
+	 */
+	JsonValue createVerificationRequestOid4vp(String accessToken, PingOneWorkerService.Worker worker,
+	                                          String message, String credentialType, String protocolVersion,
+	                                          String didMethod, List<String> issuerFilterDids,
+	                                          Integer timeoutSeconds)
+		throws PingOneCredentialsServiceException {
+
+		Request request;
+
+		try {
+			String theURI = worker.apiUrl().orElseThrow() +
+			                ENVIRONMENTS_PATH + worker.environmentId().orElseThrow() +
+			                PRESENTATION_SESSIONS_PATH;
+
+			URI uri = URI.create(theURI);
+
+			JsonValue body = json(object(1));
+
+			body.put("message", message);
+			body.put("protocol", PROTOCOL_OPENID4VP);
+
+			if (StringUtils.isNotBlank(protocolVersion)) {
+				body.put(OID4VP_PROTOCOL_VERSION_KEY, protocolVersion);
+			}
+
+			if (StringUtils.isNotBlank(didMethod)) {
+				body.put(OID4VP_DID_METHOD_KEY, didMethod);
+			}
+
+			if (issuerFilterDids != null && !issuerFilterDids.isEmpty()) {
+				JsonValue issuerFilter = json(object(1));
+				issuerFilter.put(OID4VP_ISSUER_FILTER_DIDS_KEY, issuerFilterDids);
+				body.put(OID4VP_ISSUER_FILTER_KEY, issuerFilter);
+			}
+
+			if (timeoutSeconds != null) {
+				body.put(OID4VP_TIMEOUT_SECONDS_KEY, timeoutSeconds);
+			}
+
+			// OpenID4VP permits only one credential type per request, and its
+			// requestedCredentials member carries no Native "keys" semantics.
+			JsonValue credential = json(object(1));
+			credential.put("type", credentialType);
+
+			JsonValue requestedCredentials = json(array());
+			requestedCredentials.add(credential);
+
+			body.put("requestedCredentials", requestedCredentials);
+
+			request = new Request();
+			request.setUri(uri).setMethod(HttpConstants.Methods.POST);
+
+			request.getEntity().setJson(body);
+
+			return getResponse(request, accessToken, "PingOne Credentials Create OpenID4VP Verification session");
 		} catch (Exception e) {
 			throw new PingOneCredentialsServiceException("Failed PingOne Credentials" + e.getMessage());
 		}
