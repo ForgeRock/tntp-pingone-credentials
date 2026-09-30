@@ -433,7 +433,7 @@ public class PingOneCredentialsPairWallet implements Node {
                                                                           config.scanQRCodeMessage(), SCAN_QR_CODE_MSG_KEY);
 
             Callback qrCodeCallback = new ScriptTextOutputCallback(GenerationUtils
-                                                                       .getQRCodeGenerationJavascriptForAuthenticatorAppRegistration(QR_CALLBACK_STRING, url, true));
+                                                                       .getQRCodeGenerationJavascriptForAuthenticatorAppRegistration(QR_CALLBACK_STRING, url));
 
             Callback hiddenCallback = new HiddenValueCallback(HIDDEN_CALLBACK_ID, url);
 

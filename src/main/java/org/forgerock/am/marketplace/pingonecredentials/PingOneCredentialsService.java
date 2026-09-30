@@ -84,8 +84,8 @@ public class PingOneCredentialsService {
 		Request request;
 
 		try {
-			String theURI = worker.apiUrl().orElseThrow() +
-			                ENVIRONMENTS_PATH + worker.environmentId().orElseThrow() +
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
 			                USERS_PATH + pingOneUID +
 			                DIGITAL_WALLETS_PATH;
 
@@ -118,8 +118,8 @@ public class PingOneCredentialsService {
 		Request request;
 
 		try {
-			String theURI = worker.apiUrl().orElseThrow() +
-			                ENVIRONMENTS_PATH + worker.environmentId().orElseThrow() +
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
 			                USERS_PATH + pingOneUID +
 			                CREDENTIALS_PATH;
 
@@ -161,8 +161,8 @@ public class PingOneCredentialsService {
 		Request request;
 
 		try {
-			String theURI = worker.apiUrl().orElseThrow() +
-			                ENVIRONMENTS_PATH + worker.environmentId().orElseThrow() +
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
 			                USERS_PATH + pingOneUID +
 			                OPENID4VCI_OFFERS_PATH;
 
@@ -207,8 +207,8 @@ public class PingOneCredentialsService {
 		Request request;
 
 		try {
-			String theURI = worker.apiUrl().orElseThrow() +
-			                ENVIRONMENTS_PATH + worker.environmentId().orElseThrow() +
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
 			                USERS_PATH + pingOneUID +
 			                CREDENTIALS_PATH + "/" + credentialId;
 
@@ -249,8 +249,8 @@ public class PingOneCredentialsService {
 		Request request;
 
 		try {
-			String theURI = worker.apiUrl().orElseThrow() +
-			                ENVIRONMENTS_PATH + worker.environmentId().orElseThrow() +
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
 			                USERS_PATH + pingOneUserId +
 			                DIGITAL_WALLETS_PATH;
 
@@ -300,8 +300,8 @@ public class PingOneCredentialsService {
 		Request request;
 
 		try {
-			String theURI = worker.apiUrl().orElseThrow() +
-			                ENVIRONMENTS_PATH + worker.environmentId().orElseThrow() +
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
 			                USERS_PATH + pingOneUserId +
 			                DIGITAL_WALLETS_PATH + "/" + digitalWalletId;
 
@@ -336,8 +336,8 @@ public class PingOneCredentialsService {
 		Request request;
 
 		try {
-			String theURI = worker.apiUrl().orElseThrow() +
-			                ENVIRONMENTS_PATH + worker.environmentId().orElseThrow() +
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
 			                PRESENTATION_SESSIONS_PATH;
 
 			URI uri = URI.create(theURI);
@@ -405,8 +405,8 @@ public class PingOneCredentialsService {
 		Request request;
 
 		try {
-			String theURI = worker.apiUrl().orElseThrow() +
-			                ENVIRONMENTS_PATH + worker.environmentId().orElseThrow() +
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
 			                PRESENTATION_SESSIONS_PATH;
 
 			URI uri = URI.create(theURI);
@@ -477,8 +477,8 @@ public class PingOneCredentialsService {
 		Request request;
 
 		try {
-			String theURI = worker.apiUrl().orElseThrow() +
-			                ENVIRONMENTS_PATH + worker.environmentId().orElseThrow() +
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
 			                PRESENTATION_SESSIONS_PATH;
 
 			URI uri = URI.create(theURI);
@@ -542,8 +542,8 @@ public class PingOneCredentialsService {
 		Request request;
 
 		try {
-			String theURI = worker.apiUrl().orElseThrow() +
-			                ENVIRONMENTS_PATH + worker.environmentId().orElseThrow()  +
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId()  +
 			                PRESENTATION_SESSIONS_PATH + "/" + sessionId +
 			                SESSION_DATA_PATH;
 
@@ -573,8 +573,8 @@ public class PingOneCredentialsService {
 	                            String pingOneUserId, String digitalWalletId) throws PingOneCredentialsServiceException {
 		Request request;
 		try {
-			String theURI = worker.apiUrl().orElseThrow() +
-			                ENVIRONMENTS_PATH + worker.environmentId().orElseThrow() +
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
 			                USERS_PATH + pingOneUserId +
 			                DIGITAL_WALLETS_PATH + "/" +digitalWalletId;
 
@@ -618,8 +618,8 @@ public class PingOneCredentialsService {
 		Request request;
 		try {
 
-			String theURI = worker.apiUrl().orElseThrow() +
-			                ENVIRONMENTS_PATH + worker.environmentId().orElseThrow() +
+			String theURI = worker.apiUrl() +
+			                ENVIRONMENTS_PATH + worker.environmentId() +
 			                USERS_PATH + pingOneUserId +
 			                CREDENTIALS_PATH + "/" + credentialId;
 
