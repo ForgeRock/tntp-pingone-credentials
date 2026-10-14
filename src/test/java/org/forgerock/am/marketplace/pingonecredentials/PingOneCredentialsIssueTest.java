@@ -14,6 +14,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.ERROR_OUTCOME_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.OBJECT_ATTRIBUTES;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_ID_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_OFFER_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_OFFER_QR_CODE_URL_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_OFFER_STATUS_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_OFFER_URL_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_USER_ID_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.SUCCESS_OUTCOME_ID;
 import static org.forgerock.json.JsonValue.field;
@@ -23,6 +27,8 @@ import static org.forgerock.openam.auth.node.api.SharedStateConstants.REALM;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import javax.security.auth.callback.Callback;
@@ -126,6 +132,198 @@ public class PingOneCredentialsIssueTest {
     }
 
     @Test
+    public void testOid4vciOfferSuccessStoresOfferOutputs() throws Exception {
+        // Given
+        JsonValue sharedState = json(object(
+            field(REALM, "/realm"),
+            field(PINGONE_USER_ID_KEY, "some-user-id")));
+
+        given(config.pingOneUserIdAttribute()).willReturn(PINGONE_USER_ID_KEY);
+        given(config.credentialIssuanceMode()).willReturn(Constants.CredentialIssuanceMode.OID4VCI);
+        given(config.credentialOfferCredentials())
+            .willReturn(List.of("some-credential-type-id-1", "some-credential-type-id-2"));
+        given(config.credentialOfferGrantTypes())
+            .willReturn(List.of(Constants.GRANT_TYPE_AUTHORIZATION_CODE));
+
+        JsonValue offerResponse = json(object(
+            field("id", "some-offer-id"),
+            field("status", "CREATED"),
+            field("credentialOfferUrl",
+                  "https://auth.pingone.com/some-environment-id/credential-offers/some-offer-id"),
+            field("_links", object(
+                field("openid-credential-offer", object(
+                    field("href", "openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fexample.com"))),
+                field("qrCode", object(
+                    field("href", "data:image/png;base64,some-qr-code")))))));
+
+        when(client.createCredentialOfferRequest(any(), any(), anyString(), any(), any()))
+            .thenReturn(offerResponse);
+
+        // When
+        Action result = node.process(getContext(sharedState, json(object()), emptyList()));
+
+        // Then
+        assertThat(result.outcome).isEqualTo(SUCCESS_OUTCOME_ID);
+
+        assertThat(sharedState.get(PINGONE_CREDENTIAL_OFFER_URL_KEY).asString())
+            .isEqualTo("https://auth.pingone.com/some-environment-id/credential-offers/some-offer-id");
+        assertThat(sharedState.get(PINGONE_CREDENTIAL_OFFER_QR_CODE_URL_KEY).asString())
+            .isEqualTo("data:image/png;base64,some-qr-code");
+        assertThat(sharedState.get(PINGONE_CREDENTIAL_OFFER_STATUS_KEY).asString()).isEqualTo("CREATED");
+        assertThat(sharedState.get(PINGONE_CREDENTIAL_OFFER_KEY).get("id").asString()).isEqualTo("some-offer-id");
+        assertThat(sharedState.isDefined(PINGONE_CREDENTIAL_ID_KEY)).isFalse();
+    }
+
+    @Test
+    public void testOid4vciOfferFallsBackToOpenidCredentialOfferLink() throws Exception {
+        // Given
+        JsonValue sharedState = json(object(
+            field(REALM, "/realm"),
+            field(PINGONE_USER_ID_KEY, "some-user-id")));
+
+        given(config.pingOneUserIdAttribute()).willReturn(PINGONE_USER_ID_KEY);
+        given(config.credentialIssuanceMode()).willReturn(Constants.CredentialIssuanceMode.OID4VCI);
+
+        JsonValue offerResponse = json(object(
+            field("id", "some-offer-id"),
+            field("status", "CREATED"),
+            field("_links", object(
+                field("openid-credential-offer", object(
+                    field("href", "openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fexample.com")))))));
+
+        when(client.createCredentialOfferRequest(any(), any(), anyString(), any(), any()))
+            .thenReturn(offerResponse);
+
+        // When
+        Action result = node.process(getContext(sharedState, json(object()), emptyList()));
+
+        // Then
+        assertThat(result.outcome).isEqualTo(SUCCESS_OUTCOME_ID);
+        assertThat(sharedState.get(PINGONE_CREDENTIAL_OFFER_URL_KEY).asString())
+            .isEqualTo("openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fexample.com");
+
+        // No value is invented when _links.qrCode is missing: the QR key holds an
+        // explicit JSON null (NodeState.putShared stores it as such, so isDefined
+        // reports the key as present while its value is null). This pins the
+        // known stored-shape behavior for consumers of the additive outputs.
+        assertThat(sharedState.isDefined(PINGONE_CREDENTIAL_OFFER_QR_CODE_URL_KEY)).isTrue();
+        assertThat(sharedState.get(PINGONE_CREDENTIAL_OFFER_QR_CODE_URL_KEY).isNull()).isTrue();
+        assertThat(sharedState.get(PINGONE_CREDENTIAL_OFFER_QR_CODE_URL_KEY).asString()).isNull();
+    }
+
+    @Test
+    public void testOid4vciOfferMissingOfferUrlReturnsError() throws Exception {
+        // Given
+        JsonValue sharedState = json(object(
+            field(REALM, "/realm"),
+            field(PINGONE_USER_ID_KEY, "some-user-id")));
+
+        given(config.pingOneUserIdAttribute()).willReturn(PINGONE_USER_ID_KEY);
+        given(config.credentialIssuanceMode()).willReturn(Constants.CredentialIssuanceMode.OID4VCI);
+
+        JsonValue offerResponse = json(object(
+            field("id", "some-offer-id"),
+            field("status", "CREATED")));
+
+        when(client.createCredentialOfferRequest(any(), any(), anyString(), any(), any()))
+            .thenReturn(offerResponse);
+
+        // When
+        Action result = node.process(getContext(sharedState, json(object()), emptyList()));
+
+        // Then
+        assertThat(result.outcome).isEqualTo(ERROR_OUTCOME_ID);
+        // No offer state at all is written on the error path.
+        assertThat(sharedState.isDefined(PINGONE_CREDENTIAL_OFFER_URL_KEY)).isFalse();
+        assertThat(sharedState.isDefined(PINGONE_CREDENTIAL_OFFER_QR_CODE_URL_KEY)).isFalse();
+        assertThat(sharedState.isDefined(PINGONE_CREDENTIAL_OFFER_STATUS_KEY)).isFalse();
+        assertThat(sharedState.isDefined(PINGONE_CREDENTIAL_OFFER_KEY)).isFalse();
+    }
+
+    @Test
+    public void testOid4vciOfferServiceFailureReturnsError() throws Exception {
+        // Given
+        JsonValue sharedState = json(object(
+            field(REALM, "/realm"),
+            field(PINGONE_USER_ID_KEY, "some-user-id")));
+
+        given(config.pingOneUserIdAttribute()).willReturn(PINGONE_USER_ID_KEY);
+        given(config.credentialIssuanceMode()).willReturn(Constants.CredentialIssuanceMode.OID4VCI);
+
+        when(client.createCredentialOfferRequest(any(), any(), anyString(), any(), any()))
+            .thenThrow(new PingOneCredentialsServiceException("Failed PingOne Credentials"));
+
+        // When
+        Action result = node.process(getContext(sharedState, json(object()), emptyList()));
+
+        // Then
+        assertThat(result.outcome).isEqualTo(ERROR_OUTCOME_ID);
+        assertThat(sharedState.isDefined(PINGONE_CREDENTIAL_OFFER_URL_KEY)).isFalse();
+    }
+
+    @Test
+    public void testOid4vciOfferPassesConfiguredOptionalFieldsToService() throws Exception {
+        // Given
+        JsonValue sharedState = json(object(
+            field(REALM, "/realm"),
+            field(PINGONE_USER_ID_KEY, "some-user-id")));
+
+        given(config.pingOneUserIdAttribute()).willReturn(PINGONE_USER_ID_KEY);
+        given(config.credentialIssuanceMode()).willReturn(Constants.CredentialIssuanceMode.OID4VCI);
+        given(config.credentialOfferCredentials()).willReturn(List.of("some-credential-type-id"));
+        given(config.credentialOfferGrantTypes()).willReturn(List.of(Constants.GRANT_TYPE_PRE_AUTHORIZED_CODE));
+
+        JsonValue offerResponse = json(object(
+            field("id", "some-offer-id"),
+            field("status", "CREATED"),
+            field("credentialOfferUrl", "https://auth.pingone.com/credential-offers/some-offer-id")));
+
+        when(client.createCredentialOfferRequest(any(), any(), anyString(), any(), any()))
+            .thenReturn(offerResponse);
+
+        // When
+        Action result = node.process(getContext(sharedState, json(object()), emptyList()));
+
+        // Then
+        verify(client).createCredentialOfferRequest(any(), any(), anyString(),
+                                                    org.mockito.ArgumentMatchers.eq(List.of("some-credential-type-id")),
+                                                    org.mockito.ArgumentMatchers.eq(
+                                                        List.of(Constants.GRANT_TYPE_PRE_AUTHORIZED_CODE)));
+        assertThat(result.outcome).isEqualTo(SUCCESS_OUTCOME_ID);
+    }
+
+    @Test
+    public void testNativeIssuanceDoesNotCallOfferRequest() throws Exception {
+        // Given
+        JsonValue sharedState = json(object(
+            field(REALM, "/realm"),
+            field(PINGONE_USER_ID_KEY, "some-user-id"),
+            field("sharedStateGivenName", "John")));
+
+        Map<String, String> attributes = new java.util.HashMap<>();
+        attributes.put("credentialsGivenName", "sharedStateGivenName");
+
+        given(config.pingOneUserIdAttribute()).willReturn(PINGONE_USER_ID_KEY);
+        given(config.credentialIssuanceMode()).willReturn(Constants.CredentialIssuanceMode.NATIVE);
+        given(config.credentialTypeId()).willReturn("some-credential-type-id");
+        given(config.attributes()).willReturn(attributes);
+
+        JsonValue response = json(object(
+            field("id", "some-credential-id")));
+
+        when(client.credentialIssueRequest(any(), any(), anyString(), any(), any())).thenReturn(response);
+
+        // When
+        Action result = node.process(getContext(sharedState, json(object()), emptyList()));
+
+        // Then
+        assertThat(result.outcome).isEqualTo(SUCCESS_OUTCOME_ID);
+        assertThat(sharedState.get(PINGONE_CREDENTIAL_ID_KEY).asString()).isEqualTo("some-credential-id");
+        verify(client, never()).createCredentialOfferRequest(any(), any(), anyString(), any(), any());
+        assertThat(sharedState.isDefined(PINGONE_CREDENTIAL_OFFER_URL_KEY)).isFalse();
+    }
+
+    @Test
     public void testExceptionThrowDuringProcessing() throws Exception {
         // Given
         JsonValue sharedState = json(object(
@@ -171,6 +369,10 @@ public class PingOneCredentialsIssueTest {
     public void testGetOutputs() {
         OutputState[] outputs = node.getOutputs();
         assertThat(outputs[0].name).isEqualTo(PINGONE_CREDENTIAL_ID_KEY);
+        assertThat(outputs[1].name).isEqualTo(PINGONE_CREDENTIAL_OFFER_URL_KEY);
+        assertThat(outputs[2].name).isEqualTo(PINGONE_CREDENTIAL_OFFER_QR_CODE_URL_KEY);
+        assertThat(outputs[3].name).isEqualTo(PINGONE_CREDENTIAL_OFFER_STATUS_KEY);
+        assertThat(outputs[4].name).isEqualTo(PINGONE_CREDENTIAL_OFFER_KEY);
     }
 
     @Test

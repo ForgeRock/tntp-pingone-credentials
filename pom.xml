@@ -15,15 +15,15 @@
     <artifactId>TNTPPingOneCredentials</artifactId>
 
     <groupId>org.forgerock.am.marketplace</groupId>
-    <version>1.0.7</version>
+    <version>1.0.9</version>
     <name>PingOne Credentials Nodes</name>
     <description>Nodes for PingOne Credentials Integration</description>
 
     <properties>
-        <am.version>LATEST</am.version>
-        <java.major.version>25</java.major.version>
-        <maven.compiler.source>25</maven.compiler.source>
-        <maven.compiler.target>25</maven.compiler.target>
+        <am.version>8.0.1</am.version>
+        <java.major.version>17</java.major.version>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <forgerockDistMgmtReleasesUrl>https://maven.forgerock.org/artifactory/internal-releases</forgerockDistMgmtReleasesUrl>
     </properties>
@@ -47,8 +47,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>25</source>
-                    <target>25</target>
+                    <source>17</source>
+                    <target>17</target>
                 </configuration>
             </plugin>
         </plugins>
@@ -67,6 +67,10 @@
     </dependencyManagement>
     <dependencies>
         <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.forgerock.am</groupId>
             <artifactId>auth-node-api</artifactId>
             <scope>provided</scope>
@@ -84,7 +88,7 @@
         <dependency>
             <groupId>org.forgerock.am</groupId>
             <artifactId>pingone-api</artifactId>
-            <version>LATEST</version>
+            <version>8.0.1</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
