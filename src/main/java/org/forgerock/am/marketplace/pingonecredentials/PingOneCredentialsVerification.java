@@ -9,27 +9,39 @@
 package org.forgerock.am.marketplace.pingonecredentials;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.EXPIRED;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.ERROR_OUTCOME_ID;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.EXPIRED;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.INITIAL;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.OBJECT_ATTRIBUTES;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_APPLICATION_INSTANCE_ID_KEY;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_TIMEOUT_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_DATA_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_VERIFICATION_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_DELIVERY_METHOD_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_SESSION_KEY;
-import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_CREDENTIAL_VERIFICATION_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_TIMEOUT_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_PROTOCOL_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_PROTOCOL_VERSION_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_DID_METHOD_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFICATION_ISSUER_FILTER_KEY;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PINGONE_VERIFIED_DATA_KEY;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.REQUESTED_CREDENTIALS;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_APPLICATION_INSTANCE;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_APPOPENURL;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_CREDENTIAL_DATA;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_HREF;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_LINKS;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_STATUS;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.RESPONSE_VERIFIED_DATA;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.SUCCESS_OUTCOME_ID;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.TIMEOUT_OUTCOME_ID;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.VERIFICATION_FAILED;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.VERIFICATION_SUCCESSFUL;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.WAITING;
 import static org.forgerock.openam.auth.node.api.Action.send;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.PROTOCOL_OPENID4VP;
 import static org.forgerock.am.marketplace.pingonecredentials.Constants.VerificationDeliveryMethod;
+import static org.forgerock.am.marketplace.pingonecredentials.Constants.VerificationProtocol;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -230,6 +242,81 @@ public class PingOneCredentialsVerification implements Node {
 			return false;
 		}
 
+		/**
+		 * The verification protocol. NATIVE preserves the existing PingOne
+		 * verification behavior (the default); OPENID4VP creates a documented
+		 * OpenID for Verifiable Presentations presentation session.
+		 *
+		 * @return The verification protocol.
+		 */
+		@Attribute(order = 1500, requiredValue = true)
+		default VerificationProtocol protocol() {
+			return VerificationProtocol.NATIVE;
+		}
+
+		/**
+		 * The optional OpenID4VP protocol version. Sent in the presentation session
+		 * request only when the OPENID4VP protocol is selected.
+		 *
+		 * @return The OpenID4VP protocol version.
+		 */
+		@Attribute(order = 1600)
+		Optional<String> protocolVersion();
+
+		/**
+		 * The optional OpenID4VP DID method. Sent in the presentation session
+		 * request only when the OPENID4VP protocol is selected.
+		 *
+		 * @return The OpenID4VP DID method.
+		 */
+		@Attribute(order = 1700)
+		Optional<String> didMethod();
+
+		/**
+		 * The optional OpenID4VP issuer-filter Decentralized Identifiers, sent as
+		 * the {@code issuerFilter.dids} member. Sent in the presentation session
+		 * request only when the OPENID4VP protocol is selected.
+		 *
+		 * @return The OpenID4VP issuer-filter DIDs as a List of Strings.
+		 */
+		@Attribute(order = 1800)
+		List<String> issuerFilter();
+
+		/**
+		 * The optional OpenID4VP issuer-filter PingOne environment IDs, sent as the
+		 * {@code issuerFilter.environmentIds} member. Sent in the presentation session
+		 * request only when the OPENID4VP protocol is selected.
+		 *
+		 * @return The OpenID4VP issuer-filter environment IDs as a List of Strings.
+		 */
+		@Attribute(order = 1850)
+		List<String> issuerFilterEnvironmentIds();
+
+		/**
+		 * The optional number of seconds the OpenID4VP presentation session remains
+		 * available, sent as the documented {@code timeoutSeconds} member. Leave
+		 * empty to let PingOne apply its default. Sent only when the OPENID4VP
+		 * protocol is selected.
+		 *
+		 * @return The OpenID4VP session timeout in seconds.
+		 */
+		@Attribute(order = 1900)
+		Optional<Integer> oid4vpTimeoutSeconds();
+
+		/**
+		 * When enabled, after a successful OPENID4VP presentation the node calls the
+		 * documented Read Credential Verification Credential Data operation and
+		 * stores the returned {@code credentialData} array (per-credential claims
+		 * and issuer details) in shared state under
+		 * {@code pingOneCredentialData}.
+		 *
+		 * @return true if the credential data should be fetched and stored, false otherwise.
+		 */
+		@Attribute(order = 2000, requiredValue = true)
+		default boolean storeCredentialData() {
+			return false;
+		}
+
 	}
 
 	/**
@@ -266,6 +353,12 @@ public class PingOneCredentialsVerification implements Node {
 			if (StringUtils.isBlank(accessToken)) {
 				logger.error("Unable to get access token for PingOne Worker.");
 				return buildAction(ERROR_OUTCOME_ID, context);
+			}
+
+			// OpenID4VP sessions present the documented QR/app-open link; the Native
+			// QR/Push delivery-method selection does not apply to them.
+			if (VerificationProtocol.OPENID4VP.equals(config.protocol())) {
+				return processOid4vpVerification(context, nodeState, accessToken, worker);
 			}
 
 			// Check if choice was made
@@ -355,6 +448,198 @@ public class PingOneCredentialsVerification implements Node {
 				throw new IllegalStateException("Unexpected status returned from PingOne Credential Verification: "
 				                                + status);
 		}
+	}
+
+	/**
+	 * Runs the OpenID4VP verification flow: on the first pass it creates the
+	 * documented OPENID4VP presentation session and sends the QR/app-open
+	 * callbacks; on subsequent passes it polls the session data and maps the
+	 * documented statuses to the node outcomes.
+	 *
+	 * @param context The tree context.
+	 * @param nodeState The node state.
+	 * @param accessToken The PingOne worker access token.
+	 * @param worker The PingOne worker.
+	 * @return The action for the OpenID4VP flow.
+	 */
+	private Action processOid4vpVerification(TreeContext context, NodeState nodeState, String accessToken,
+	                                         PingOneWorkerService.Worker worker) throws Exception {
+
+		// A started session is identified by the shared session ID; poll its status.
+		if (nodeState.isDefined(PINGONE_VERIFICATION_SESSION_KEY)) {
+			return getActionFromOid4vpVerificationStatus(context, accessToken, worker);
+		}
+
+		// A polling pass without the required session state is an error.
+		if (context.getCallback(PollingWaitCallback.class).isPresent()) {
+			logger.error("Expected OpenID4VP verification session to be set in shared state.");
+			return buildAction(ERROR_OUTCOME_ID, context);
+		}
+
+		return startOid4vpVerificationTransaction(context, nodeState, accessToken, worker);
+	}
+
+	/**
+	 * Creates the documented OPENID4VP presentation session, storing the session
+	 * ID and the additive protocol state for the polling passes. Optional
+	 * protocol state members are stored only when configured, so consumers can
+	 * use isDefined to detect them.
+	 *
+	 * @param context The tree context.
+	 * @param nodeState The node state.
+	 * @param accessToken The PingOne worker access token.
+	 * @param worker The PingOne worker.
+	 * @return The action sending the QR/app-open callbacks.
+	 */
+	private Action startOid4vpVerificationTransaction(TreeContext context, NodeState nodeState,
+	                                                  String accessToken, PingOneWorkerService.Worker worker)
+		throws Exception {
+
+		// OpenID4VP permits exactly one requested credential type: the configured
+		// Credential Type. A missing type is a configuration error, not a request
+		// to send.
+		if (StringUtils.isBlank(config.credentialType())) {
+			logger.error("Expected a credential type to be configured for OpenID4VP verification.");
+			return buildAction(ERROR_OUTCOME_ID, context);
+		}
+
+		String message = getPushMessage(context);
+
+		JsonValue response = client.createVerificationRequestOid4vp(accessToken,
+		                                                            worker,
+		                                                            message,
+		                                                            config.credentialType(),
+		                                                            config.protocolVersion().orElse(null),
+		                                                            config.didMethod().orElse(null),
+		                                                            config.issuerFilter(),
+		                                                            config.issuerFilterEnvironmentIds(),
+		                                                            config.oid4vpTimeoutSeconds().orElse(null));
+
+		// Retrieve response values
+		String sessionId = response.get(RESPONSE_ID).asString();
+
+		if (StringUtils.isBlank(sessionId)) {
+			logger.error("OpenID4VP presentation session response did not contain a session ID.");
+			return buildAction(ERROR_OUTCOME_ID, context);
+		}
+
+		nodeState.putShared(PINGONE_VERIFICATION_SESSION_KEY, sessionId);
+		nodeState.putShared(PINGONE_VERIFICATION_TIMEOUT_KEY, TRANSACTION_POLL_INTERVAL);
+		nodeState.putShared(PINGONE_VERIFICATION_PROTOCOL_KEY, PROTOCOL_OPENID4VP);
+
+		if (config.protocolVersion().isPresent()) {
+			nodeState.putShared(PINGONE_VERIFICATION_PROTOCOL_VERSION_KEY, config.protocolVersion().get());
+		}
+
+		if (config.didMethod().isPresent()) {
+			nodeState.putShared(PINGONE_VERIFICATION_DID_METHOD_KEY, config.didMethod().get());
+		}
+
+		if (config.issuerFilter() != null && !config.issuerFilter().isEmpty()) {
+			nodeState.putShared(PINGONE_VERIFICATION_ISSUER_FILTER_KEY, config.issuerFilter());
+		}
+
+		List<Callback> callbacks = getCallbacksForOid4vpResponse(context, response);
+
+		return send(callbacks).build();
+	}
+
+	/**
+	 * Polls the OpenID4VP session data and maps the documented statuses to the
+	 * node outcomes: INITIAL/WAITING keep waiting, VERIFICATION_SUCCESSFUL
+	 * exposes the verified data, VERIFICATION_FAILED and EXPIRED follow the
+	 * established node status contract.
+	 *
+	 * @param context The tree context.
+	 * @param accessToken The PingOne worker access token.
+	 * @param worker The PingOne worker.
+	 * @return The action for the polled session status.
+	 */
+	private Action getActionFromOid4vpVerificationStatus(TreeContext context, String accessToken,
+	                                                     PingOneWorkerService.Worker worker) throws Exception {
+		NodeState nodeState = context.getStateFor(this);
+
+		// Retrieve verification session ID from shared state
+		String sessionId = Objects.requireNonNull(nodeState.get(PINGONE_VERIFICATION_SESSION_KEY)).asString();
+
+		// Check transaction status and take appropriate action
+		JsonValue response = client.readVerificationSession(accessToken,
+		                                                    worker,
+		                                                    sessionId);
+
+		// Retrieve response values
+		String status = response.get(RESPONSE_STATUS).asString();
+
+		switch (status) {
+			case INITIAL:
+			case WAITING:
+				List<Callback> callbacks = getCallbacksForOid4vpResponse(context, response);
+				return waitTransactionCompletion(nodeState, callbacks).build();
+			case VERIFICATION_SUCCESSFUL:
+				// The application instance is stored only when the response defines
+				// it, so isDefined reports absence correctly.
+				if (response.isDefined(RESPONSE_APPLICATION_INSTANCE)
+				        && response.get(RESPONSE_APPLICATION_INSTANCE).isNotNull()) {
+					nodeState.putShared(PINGONE_APPLICATION_INSTANCE_ID_KEY,
+					                    response.get(RESPONSE_APPLICATION_INSTANCE).get(RESPONSE_ID).asString());
+				}
+
+				if (config.storeVerificationResponse()) {
+					nodeState.putShared(PINGONE_CREDENTIAL_VERIFICATION_KEY, response);
+				}
+
+				// The verified data is stored only when the response defines the
+				// member, so isDefined reports absence correctly.
+				if (response.isDefined(RESPONSE_VERIFIED_DATA) && response.get(RESPONSE_VERIFIED_DATA).isNotNull()) {
+					nodeState.putShared(PINGONE_VERIFIED_DATA_KEY, response.get(RESPONSE_VERIFIED_DATA).getObject());
+				}
+
+				// The credential data is fetched and stored only when the toggle is
+				// enabled, and only when the response defines the member, so isDefined
+				// reports absence correctly.
+				if (config.storeCredentialData()) {
+					JsonValue credentialDataResponse = client.readVerificationCredentialData(accessToken,
+					                                                                        worker,
+					                                                                        sessionId);
+
+					if (credentialDataResponse.isDefined(RESPONSE_CREDENTIAL_DATA)
+					        && credentialDataResponse.get(RESPONSE_CREDENTIAL_DATA).isNotNull()) {
+						nodeState.putShared(PINGONE_CREDENTIAL_DATA_KEY,
+						                    credentialDataResponse.get(RESPONSE_CREDENTIAL_DATA).getObject());
+					}
+				}
+
+				return buildAction(SUCCESS_OUTCOME_ID, context);
+			case VERIFICATION_FAILED:
+			case EXPIRED:
+				// Keep the terminal session (its status and any documented errors) so a
+				// journey can explain why the verification did not succeed.
+				if (config.storeVerificationResponse()) {
+					nodeState.putShared(PINGONE_CREDENTIAL_VERIFICATION_KEY, response);
+				}
+				return buildAction(ERROR_OUTCOME_ID, context);
+			default:
+				throw new IllegalStateException("Unexpected status returned from PingOne Credential Verification: "
+				                                + status);
+		}
+	}
+
+	/**
+	 * Builds the OpenID4VP delivery callbacks from the presentation session
+	 * response. The documented {@code _links.appOpenUrl.href} deep link is the
+	 * compatible content for the AM QR callback: the documented {@code _links.qr}
+	 * member is an already-rendered base64 PNG image and cannot be re-encoded,
+	 * so the wallet is given the deep link it can act on. No value is invented
+	 * when the deep link is absent.
+	 *
+	 * @param context The tree context.
+	 * @param response The presentation session response.
+	 * @return The callbacks for the QR/app-open delivery.
+	 */
+	private List<Callback> getCallbacksForOid4vpResponse(TreeContext context, JsonValue response) {
+		String appOpenUrl = response.get(RESPONSE_LINKS).get(RESPONSE_APPOPENURL).get(RESPONSE_HREF).asString();
+
+		return getCallbacksForDeliveryMethod(context, VerificationDeliveryMethod.QRCODE, appOpenUrl);
 	}
 
 	private Action startVerificationTransaction(TreeContext context, String accessToken,
@@ -464,7 +749,7 @@ public class PingOneCredentialsVerification implements Node {
 			                                                              config.scanQRCodeMessage(), SCAN_QR_CODE_MSG_KEY);
 
 			Callback qrCodeCallback = new ScriptTextOutputCallback(GenerationUtils
-				                                                       .getQRCodeGenerationJavascriptForAuthenticatorAppRegistration(QR_CALLBACK_STRING, url, true));
+				                                                       .getQRCodeGenerationJavascriptForAuthenticatorAppRegistration(QR_CALLBACK_STRING, url));
 
 			Callback hiddenCallback = new HiddenValueCallback(HIDDEN_CALLBACK_ID, url);
 
@@ -553,6 +838,7 @@ public class PingOneCredentialsVerification implements Node {
 			new InputState(config.digitalWalletApplicationId().orElse(""), false),
 			new InputState(PINGONE_APPLICATION_INSTANCE_ID_KEY, false),
 			new InputState(PINGONE_CREDENTIAL_VERIFICATION_KEY, false),
+			new InputState(PINGONE_CREDENTIAL_DATA_KEY, false),
 			new InputState(REQUESTED_CREDENTIALS, false)
 		};
 	}
@@ -562,7 +848,13 @@ public class PingOneCredentialsVerification implements Node {
 		return new OutputState[] {
 				new OutputState(PINGONE_VERIFICATION_SESSION_KEY),
 				new OutputState(PINGONE_VERIFICATION_DELIVERY_METHOD_KEY),
-				new OutputState(PINGONE_VERIFICATION_TIMEOUT_KEY)
+				new OutputState(PINGONE_VERIFICATION_TIMEOUT_KEY),
+				new OutputState(PINGONE_VERIFICATION_PROTOCOL_KEY),
+				new OutputState(PINGONE_VERIFICATION_PROTOCOL_VERSION_KEY),
+				new OutputState(PINGONE_VERIFICATION_DID_METHOD_KEY),
+				new OutputState(PINGONE_VERIFICATION_ISSUER_FILTER_KEY),
+				new OutputState(PINGONE_VERIFIED_DATA_KEY),
+				new OutputState(PINGONE_CREDENTIAL_DATA_KEY)
 			};
 	}
 
